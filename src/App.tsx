@@ -428,7 +428,7 @@ export default function App() {
             }`}
           >
             <Headphones className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
-            المجالس الصوتية للجدد
+            غرفة المستخدمين الجدد 🌹
           </button>
 
           <button

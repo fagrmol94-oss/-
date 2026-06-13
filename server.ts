@@ -321,10 +321,10 @@ let rooms: VoiceRoom[] = [
     ownerName: "إدارة الموقع",
     isCustom: false,
     activeAudioTopic: {
-      title: "صوت القرآن الكريم: سورة الفاتحة بصوت الشيخ ماهر المعيقلي",
-      streamUrl: "https://server12.mp3quran.net/maher/001.mp3",
-      isPlaying: true,
-      surahId: 1
+      title: "البث الصوتي متوقف حالياً - يمكنك تشغيله متى شئت",
+      streamUrl: "",
+      isPlaying: false,
+      surahId: undefined
     },
     seats: [
       { id: 0, user: { id: "bot_1", name: "بلال الأنصاري (مستشار) 📖", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=ansari", isNewUser: false, points: 2350, isMuted: false, isSpeaking: false } },

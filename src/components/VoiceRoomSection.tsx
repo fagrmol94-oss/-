@@ -25,7 +25,9 @@ import {
   Share2,
   Smartphone,
   Copy,
-  Upload
+  Upload,
+  Lock,
+  UserPlus
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -139,8 +141,10 @@ export default function VoiceRoomSection({
   const [roomsList, setRoomsList] = useState<VoiceRoomStub[]>([]);
   const [currentRoomId, setCurrentRoomId] = useState<string>("new-users");
 
-  // Seats and messages sync with server
-  const [seats, setSeats] = useState<VoiceRoomSeat[]>([]);
+  // Seats and messages sync with server (Pre-filled with 10 empty seats to maintain instant layout visibility)
+  const [seats, setSeats] = useState<VoiceRoomSeat[]>(() =>
+    Array.from({ length: 10 }, (_, i) => ({ id: i, user: null }))
+  );
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [activeAudioTopic, setActiveAudioTopic] = useState({
     title: "مجلس الذكر العطر وتدارس السيرة النبوية والمؤاخاة",
@@ -255,8 +259,9 @@ export default function VoiceRoomSection({
   useEffect(() => {
     if (roomAudioElement) {
       roomAudioElement.pause();
+    }
+    if (activeAudioTopic.streamUrl) {
       const prevPlay = activeAudioTopic.isPlaying;
-      
       const audio = new Audio(activeAudioTopic.streamUrl);
       audio.volume = 0.25;
       audio.loop = true;
@@ -264,8 +269,10 @@ export default function VoiceRoomSection({
         audio.play().catch(e => console.log("Audio restore trigger warning:", e));
       }
       setRoomAudioElement(audio);
+    } else {
+      setRoomAudioElement(null);
     }
-  }, [activeAudioTopic.streamUrl]);
+  }, [activeAudioTopic.streamUrl, activeAudioTopic.isPlaying]);
 
   const connectWS = () => {
     try {
@@ -848,227 +855,165 @@ export default function VoiceRoomSection({
       {/* Main Seating Round Table Panel */}
       <div className="xl:col-span-8 flex flex-col gap-6">
         
-        {/* Header with quick information */}
-        <div className="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
-              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-black font-mono">غرفة البث المباشر</span>
-              {isConnected ? (
-                <span className="text-[10px] text-neutral-400 font-bold">متصل بالشبكة الإيمانية</span>
-              ) : (
-                <span className="text-[10px] text-red-400 font-bold">يتم إعادة الاتصال...</span>
-              )}
-            </div>
-            <h2 className="text-lg md:text-xl font-black text-white mt-1.5 flex items-center gap-2">
-              <Users className="w-6 h-6 text-amber-500" />
-              غرفة المستخدمين الجدد بـ 10 مقاعد | إدارة موقع إسلام بالعربي ترحب بكم 🌹
-            </h2>
-            <p className="text-xs text-neutral-400 mt-1">
-              إدارة موقع إسلام بالعربي ترحب بكم في غرفتكم المخصصة للمنضمين الجدد بـ 10 مقاعد؛ لطلب العلم والمؤاخاة والاستماع للقرآن الكريم بالكامل ولرفع مستواك تلقائياً!
-            </p>
-          </div>
-
-          {/* Join voice players options */}
-          <button
-            onClick={toggleRoomLiveFeed}
-            className={`px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
-              activeAudioTopic.isPlaying
-                ? "bg-gradient-to-l from-emerald-950 to-neutral-950 border-emerald-500/40 text-emerald-400 hover:border-emerald-500"
-                : "bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700"
-            }`}
-          >
-            {activeAudioTopic.isPlaying ? <Volume2 className="w-4 h-4 animate-bounce" /> : <VolumeX className="w-4 h-4" />}
+        {/* Beautiful Custom Header Banner with the User's Uploaded Background Image */}
+        <div 
+          className="relative rounded-2xl overflow-hidden border border-emerald-500/15 h-48 md:h-56 flex flex-col justify-end p-5 md:p-6 bg-cover bg-center shadow-lg"
+          style={{ backgroundImage: "url('/room_welcome_bg.jpg')" }}
+        >
+          {/* High-contrast gradient overlay to make text perfectly readable */}
+          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-900/60 to-neutral-900/20"></div>
+          
+          <div className="relative z-10 w-full flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
             <div>
-              <p className="text-right leading-none">صوت البث الجماعي</p>
-              <p className="text-[9px] text-neutral-500 mt-1 text-right">{activeAudioTopic.isPlaying ? "مفعل ومستمر الآن" : "صامت (اضغط لتنشيط)"}</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Dynamic Stream Management Control Deck (Plays full 114 Surahs!) */}
-        <div className="bg-neutral-900/60 p-5 rounded-2xl border border-neutral-800 flex flex-col gap-4">
-          <h3 className="text-xs md:text-sm font-black text-white flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-emerald-400 animate-pulse" />
-            تصفح وبث سور القرآن الكريم كاملة (114 سورة شريفة)
-          </h3>
-
-          <div className="grid grid-cols-1 gap-4">
-            
-            {/* Quran Selector */}
-            <div className="bg-neutral-950/80 p-4 rounded-xl border border-neutral-850 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded font-bold font-serif">مصحف الشيخ ماهر المعيقلي بالكامل 📖</span>
-                  <span className="text-[8px] text-neutral-500">114 سورة بجودة عالية</span>
-                </div>
-                <p className="text-[9px] text-neutral-400 leading-tight">اختر أي سورة من القرآن الكريم بالكامل لبثها صوتاً مباشراً وخشوعاً مشتركاً لكافة أعضاء الغرفة.</p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                <span className="text-[10px] bg-emerald-950/80 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-black font-sans backdrop-blur-sm">البث المباشر المعتمد</span>
+                <span className="text-[10px] bg-amber-950/80 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-bold backdrop-blur-sm">10 مقاعد فقط</span>
+                {isConnected ? (
+                  <span className="text-[9px] text-neutral-350 drop-shadow">متصل بالشبكة الإيمانية</span>
+                ) : (
+                  <span className="text-[9px] text-red-300 font-bold drop-shadow">يتم إعادة الاتصال...</span>
+                )}
               </div>
               
-              <div className="flex gap-2.5 w-full md:w-auto">
-                <select
-                  id="full-quran-surah-dropdown"
-                  value={selectedSurahId}
-                  onChange={(e) => switchQuranSurah(Number(e.target.value))}
-                  className="flex-1 md:w-64 bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-neutral-200 outline-none focus:border-amber-400 scrollbar-thin"
-                >
-                  {SURAH_NAMES.map((name, idx) => (
-                    <option key={idx} value={idx + 1}>
-                      سورة {name} ({idx + 1})
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => switchQuranSurah(selectedSurahId)}
-                  className="px-3 bg-emerald-500 hover:bg-emerald-450 text-neutral-950 font-black rounded-xl text-xs flex items-center justify-center cursor-pointer"
-                  title="تحديث البث"
-                >
-                  <Play className="w-4 h-4" />
-                </button>
-              </div>
+              <h2 className="text-lg md:text-2xl font-black text-white tracking-tight flex items-center gap-2 drop-shadow-md">
+                غرفة المستخدمين الجدد 🌹
+              </h2>
+              <p className="text-xs text-neutral-200 mt-1 drop-shadow font-medium max-w-xl leading-relaxed">
+                {currentRoomId === "new-users" 
+                  ? "إدارة موقع إسلام بالعربي ترحب بكم في مجلس الحوار الصوتي والتعارف المبارك والمؤاخاة بـ 10 مقاعد!"
+                  : "إدارة موقع إسلام بالعربي ترحب بالمشتركين الجدد وتتمنى لكم مجلساً مباركاً وتلاوة عطرة بـ 10 مقاعد!"}
+              </p>
             </div>
 
-            {activeAudioTopic.surahId && (
-              <span className="text-[10px] text-amber-400 font-bold block bg-amber-500/5 p-2 rounded border border-amber-500/10 text-center">
-                أنت والأعضاء تستمعون حالياً إلى: <strong>{activeAudioTopic.title}</strong>
-              </span>
+            {currentRoomId !== "new-users" && (
+              <button
+                onClick={toggleRoomLiveFeed}
+                className={`px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-2 transition-all cursor-pointer backdrop-blur-md shadow-md ${
+                  activeAudioTopic.isPlaying
+                    ? "bg-emerald-950/80 border-emerald-400/40 text-emerald-300 hover:border-emerald-300"
+                    : "bg-neutral-950/80 border-neutral-800 text-neutral-350 hover:border-neutral-750"
+                }`}
+              >
+                {activeAudioTopic.isPlaying ? <Volume2 className="w-4 h-4 animate-bounce text-emerald-400" /> : <VolumeX className="w-4 h-4 text-neutral-400" />}
+                <div>
+                  <p className="text-right leading-none font-bold">صوت البث الجماعي</p>
+                </div>
+              </button>
             )}
-
           </div>
         </div>
 
-        {/* The 20 Seats Virtual Round Table Representation Grid */}
-        <div className="bg-gradient-to-b from-neutral-900/60 to-neutral-950/40 border border-neutral-800 rounded-3xl p-6 md:p-8 flex flex-col items-center relative overflow-hidden">
+        {/* The 10 Seats Interactive Layout Grid */}
+        <div className="bg-slate-950/80 border border-neutral-850 rounded-3xl p-4 sm:p-6 md:p-8 flex flex-col relative overflow-hidden shadow-2xl">
           
-          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-amber-500/5 to-transparent pointer-events-none"></div>
+          {/* Subtle starry dark night background overlay */}
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiIHZpZXdCb3g9IjAgMCA4IDgiPjxjaXJjbGUgY3g9IjQiIGN5PSI0IiByPSIxIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMjUiLz48L3N2Zz4=')] opacity-60 pointer-events-none"></div>
 
-          {/* Table Center Ornament */}
-          <div className="w-28 h-28 md:w-36 md:h-36 rounded-full bg-neutral-950/80 border border-neutral-800 flex flex-col items-center justify-center text-center p-3 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-inner z-10">
-            <div className="absolute inset-0 bg-emerald-500/5 rounded-full scale-125 blur-lg pointer-events-none"></div>
-            <Sparkles className="w-5 h-5 text-amber-500/30 animate-pulse mb-1.5" />
-            <h4 className="text-[10px] md:text-xs font-bold text-neutral-300">منصّة الحوار الدافئة</h4>
-            <p className="text-[8px] md:text-[9px] text-neutral-500 mt-1 line-clamp-2 leading-tight">
-              {activeAudioTopic.title}
-            </p>
-          </div>
-
-          <div className="w-full grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-y-12 gap-x-6 py-6 md:py-10 z-20">
+          {/* Highly responsive columns structure to ensure seats never overflow or stack awkwardly on small screens */}
+          <div dir="rtl" className="w-full grid grid-cols-3 min-[450px]:grid-cols-4 sm:grid-cols-5 gap-x-2 gap-y-6 sm:gap-6 py-4 z-20">
             {seats.map((seat) => {
               const u = seat.user;
               const isMe = u !== null && (u.id === myClientId || u.name === userProfile.name);
               
               return (
-                <div key={seat.id} className="flex flex-col items-center justify-between min-h-[140px] relative">
-                  
-                  {/* Seat numerical locator tag */}
-                  <span className="absolute -top-3.5 bg-neutral-950 text-neutral-500 text-[8px] font-mono font-bold px-2 py-0.5 rounded border border-neutral-850">
-                    مقعد رقم {seat.id + 1}
-                  </span>
-
+                <div 
+                  key={seat.id} 
+                  className="flex flex-col items-center justify-center text-center relative group min-h-[95px] sm:min-h-[120px]"
+                >
                   {/* Tactile Avatar structure */}
-                  <div className="relative">
+                  <div className="relative animate-fade-in">
                     
                     {/* Glowing Speaking feedback effect */}
                     {u && u.isSpeaking && (
                       <motion.div
-                        className="absolute inset-0 bg-emerald-500/20 rounded-full scale-125 pointer-events-none"
-                        animate={{ scale: [1.1, 1.4, 1.1] }}
+                        className="absolute inset-0 bg-emerald-500/20 rounded-full scale-125 pointer-events-none shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                        animate={{ scale: [1.1, 1.3, 1.1] }}
                         transition={{ repeat: Infinity, duration: 1.5 }}
                       ></motion.div>
                     )}
 
                     {u && !u.isMuted && (
-                      <span className="absolute -bottom-1 -left-1 bg-emerald-500 text-neutral-950 p-1 rounded-full border border-neutral-900 z-10 transform scale-90">
-                        <Mic className="w-3.5 h-3.5" />
+                      <span className="absolute -bottom-1 -left-1 bg-emerald-500 text-neutral-950 p-[3px] sm:p-1 rounded-full border border-neutral-900 z-10 transform scale-75 sm:scale-90 shadow-md animate-pulse">
+                        <Mic className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
                       </span>
                     )}
 
                     {u && u.isMuted && (
-                      <span className="absolute -bottom-1 -left-1 bg-neutral-950 text-neutral-500 p-1 rounded-full border border-neutral-900 z-10 transform scale-90">
-                        <MicOff className="w-3.5 h-3.5" />
+                      <span className="absolute -bottom-1 -left-1 bg-neutral-950 text-neutral-500 p-[3px] sm:p-1 rounded-full border border-neutral-900 z-10 transform scale-75 sm:scale-90 shadow-md">
+                        <MicOff className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
                       </span>
                     )}
 
                     {/* Occupier Profile avatar */}
                     {u ? (
-                      <img
-                        id={`seat-avatar-${seat.id}`}
-                        src={u.avatar}
-                        alt="Participant Avatar"
-                        className={`w-16 h-16 rounded-full border-2 bg-neutral-950 p-1 transition-all ${
-                          isMe 
-                            ? "border-amber-400 scale-105" 
-                            : u.isSpeaking 
-                              ? "border-emerald-500" 
-                              : "border-neutral-800"
-                        }`}
-                        referrerPolicy="no-referrer"
-                      />
+                      <button
+                        id={`seat-avatar-btn-${seat.id}`}
+                        onClick={() => {
+                          if (isMe) {
+                            if (confirm("هل تريد مغادرة هذا المقعد الصوتي؟")) {
+                              leaveSeat();
+                            }
+                          } else {
+                            if (clientSeatedId === null) {
+                              alert("يجب عليك شغل أحد المقاعد الشاغرة أولاً لتتمكن من إرسال الهدايا للآخرين!");
+                              return;
+                            }
+                            setSelectedRecipientSeatId(seat.id);
+                            triggerTickSound(750);
+                          }
+                        }}
+                        className="relative focus:outline-none"
+                      >
+                        <img
+                          id={`seat-avatar-${seat.id}`}
+                          src={u.avatar}
+                          alt="Participant Avatar"
+                          className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full border bg-neutral-950 p-[1.5px] sm:p-1 transition-all ${
+                            isMe 
+                              ? "border-amber-400 scale-105 shadow-[0_0_12px_rgba(251,191,36,0.5)]" 
+                              : u.isSpeaking 
+                                ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" 
+                                : "border-neutral-700/80"
+                          } shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-105 active:scale-95`}
+                          referrerPolicy="no-referrer"
+                        />
+                      </button>
                     ) : (
-                      // Empty layout locator
+                      // Beautiful active empty seat placeholder with direct prompt to tap and talk
                       <button
                         id={`take-seat-btn-${seat.id}`}
                         onClick={() => takeSeat(seat.id)}
-                        className="w-16 h-16 rounded-full border-2 border-dashed border-neutral-800 bg-neutral-950/60 hover:bg-neutral-900 flex flex-col items-center justify-center text-neutral-500 hover:text-amber-500 hover:border-amber-500/40 transition-colors cursor-pointer"
-                        title="انقر لتشغل هذا المقعد"
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border border-dashed border-amber-500/35 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 hover:scale-105 active:scale-95 flex items-center justify-center text-amber-500/80 transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-md animate-pulse"
+                        title="انقر لتشغل هذا المقعد وتنضم للحوار"
                       >
-                        <Smile className="w-5 h-5 opacity-40 animate-pulse" />
-                        <span className="text-[8px] font-bold mt-1.5">شاغر</span>
+                        <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
                       </button>
                     )}
                   </div>
 
                   {/* Seat Labels section */}
                   {u ? (
-                    <div className="text-center mt-2.5 max-w-[120px]">
-                      <p className={`text-[10px] md:text-xs font-bold line-clamp-1 ${isMe ? "text-amber-400" : "text-neutral-200"}`}>
-                        {u.name}
+                    <div className="text-center mt-1 w-full max-w-[60px] sm:max-w-[100px] flex flex-col items-center select-none">
+                      <p className={`text-[9.5px] sm:text-[11.5px] font-black truncate w-full leading-tight ${isMe ? "text-amber-400 font-extrabold" : "text-neutral-200"}`}>
+                        {u.name.split(" ")[0]}
                       </p>
                       
-                      <div className="flex items-center justify-center gap-1.5 mt-1 flex-wrap">
-                        {u.isNewUser && (
-                          <span className="text-[7.5px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1 py-[0.1rem] rounded-md font-bold text-center">
-                            عضو جديد 👤
-                          </span>
-                        )}
-                        <span className="text-[8px] text-neutral-500 font-mono font-bold">
+                      <div className="flex items-center justify-center gap-0.5 mt-0.5 w-full">
+                        <span className="text-[8px] text-neutral-400 font-sans font-medium truncate">
                           {u.points} 🪙
                         </span>
                       </div>
-
-                      {/* Gift triggers & Interactive control drawer for attendees */}
-                      <div className="flex items-center gap-1 justify-center mt-2 flex-wrap">
-                        {isMe ? (
-                          <button
-                            id={`leave-seat-btn-${seat.id}`}
-                            onClick={leaveSeat}
-                            className="bg-neutral-950 hover:bg-red-950 border border-neutral-850 hover:border-red-500/20 px-2 py-1 rounded text-[8px] font-bold text-neutral-400 hover:text-red-400 transition-colors cursor-pointer select-none"
-                          >
-                            مغادرة
-                          </button>
-                        ) : (
-                          <button
-                            id={`gift-sent-recipient-${seat.id}`}
-                            onClick={() => {
-                              if (clientSeatedId === null) {
-                                alert("يجب عليك شغل أحد المقاعد الشاغرة أولاً لتتمكن من إرسال واستلام الهدايا مع الآخرين!");
-                                return;
-                              }
-                              setSelectedRecipientSeatId(seat.id);
-                              triggerTickSound(750);
-                            }}
-                            className="bg-neutral-950 hover:bg-amber-950 border border-neutral-850 hover:border-amber-500/30 px-2 py-1 rounded text-[8px] font-bold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer flex items-center gap-1 select-none"
-                          >
-                            <Gift className="w-2.5 h-2.5" />
-                            <span>كرم</span>
-                          </button>
-                        )}
-                      </div>
-
                     </div>
                   ) : (
-                    <span className="text-[9px] text-neutral-600 font-bold mt-2">متاح للجلوس</span>
+                    <div className="flex flex-col items-center mt-1 select-none">
+                      <span className="text-[9.5px] sm:text-[11px] font-extrabold text-amber-400 tracking-wide leading-none">
+                        مقعد {seat.id + 1}
+                      </span>
+                      <span className="text-[7.5px] sm:text-[9.5px] text-neutral-400/90 leading-none mt-0.5">
+                        اضغط للتحدث
+                      </span>
+                    </div>
                   )}
 
                 </div>
