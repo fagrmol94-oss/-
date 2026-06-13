@@ -90,7 +90,7 @@ interface VoiceRoomStub {
   activeCount: number;
 }
 
-// 6 beautiful spiritual gifts
+// 10 beautiful spiritual gifts including big premium ones
 const SPIRITUAL_GIFTS = [
   { id: "zamzam", arabicName: "ماء زمزم المبارك 💧", price: 50, icon: "💧", description: "يرطب ويطهر القلوب ويقرب الصلات", pointsReward: 80 },
   { id: "mushaf", arabicName: "مصحف شريف فاخر 📖", price: 120, icon: "📖", description: "يزيد من ثواب التعلم والتدبر المشترك", pointsReward: 150 },
@@ -98,6 +98,12 @@ const SPIRITUAL_GIFTS = [
   { id: "carpet", arabicName: "سجادة صلاة وثيره 🕌", price: 80, icon: "🕌", description: "لإعانة المسلمين على طول القيام والخشوع", pointsReward: 100 },
   { id: "oud", arabicName: "دهن العود الملكي 🧴", price: 100, icon: "🧴", description: "رائحة زكية تعطر المجالس والمؤاخاة", pointsReward: 120 },
   { id: "subha", arabicName: "مسبحة عقيق كريمة 📿", price: 40, icon: "📿", description: "تذكير بذكر الله في كل الغدوات والروحات", pointsReward: 50 },
+  
+  // Premium big gifts
+  { id: "kaaba_cover", arabicName: "كسوة الكعبة المشرفة المذهبة 🕋✨", price: 1000, icon: "🕋", description: "الهدية الأثمن والأكبر بالمنصة بالزركشة الذهبية والبركة العميقة!", pointsReward: 1800, isPremium: true },
+  { id: "prophetic_musk", arabicName: "باقة عطر الروضة والمسك النبوي 🌸🧴", price: 300, icon: "🌸", description: "عطر مروحي فائق يعبق بكافة أرجاء دردشة الإخوة بروائح المسك الزكية", pointsReward: 500, isPremium: true },
+  { id: "dome_of_rock", arabicName: "منبر درع قبة الصخرة المشرفة 🕌👑", price: 600, icon: "🕌", description: "بناء ذهبي عملاق ساطع لتكريم الأخوة، يعبر عن السكينة ومكانة القدس الشامخة", pointsReward: 1100, isPremium: true },
+  { id: "umrah_package", arabicName: "سهم رحلة عمرة المؤاخاة الكبرى 🕋✈️", price: 2500, icon: "✈️", description: "أعلى تبرع معنوي ملكي وتكريم تآخي بالموقع لنشر عظيم الأجر والبركات الدائمة!", pointsReward: 4500, isPremium: true }
 ];
 
 // All 114 Arabic Surah Names for easy dropdown browsing
@@ -139,7 +145,7 @@ export default function VoiceRoomSection({
   
   // Multi-room support
   const [roomsList, setRoomsList] = useState<VoiceRoomStub[]>([]);
-  const [currentRoomId, setCurrentRoomId] = useState<string>("new-users");
+  const [currentRoomId, setCurrentRoomId] = useState<string>("public-chat");
 
   // Seats and messages sync with server (Pre-filled with 10 empty seats to maintain instant layout visibility)
   const [seats, setSeats] = useState<VoiceRoomSeat[]>(() =>
@@ -218,6 +224,16 @@ export default function VoiceRoomSection({
       if (roomAudioElement) roomAudioElement.pause();
     };
   }, []);
+
+  // Auto-seat users in 'public-chat' room because seats are visually canceled there
+  useEffect(() => {
+    if (currentRoomId === "public-chat" && clientSeatedId === null && isConnected && seats.length > 0) {
+      const vacantSeat = seats.find(s => s.user === null);
+      if (vacantSeat) {
+        takeSeat(vacantSeat.id);
+      }
+    }
+  }, [currentRoomId, clientSeatedId, seats, isConnected]);
 
   // Stay seated active reward to increase level automatically!
   useEffect(() => {
@@ -310,7 +326,7 @@ export default function VoiceRoomSection({
               setMessages(raw.messages);
               setMyClientId(raw.myClientId);
               setActiveAudioTopic(raw.activeAudioTopic);
-              setCurrentRoomId(raw.currentRoomId || "new-users");
+              setCurrentRoomId(raw.currentRoomId || "public-chat");
               break;
 
             case "ROOM_CREATION_SUCCESS":
@@ -719,28 +735,114 @@ export default function VoiceRoomSection({
   return (
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 text-right animate-fade-in relative pb-10" dir="rtl">
       
-      {/* Floating Dynamic Gifts overlay particles */}
-      <div className="absolute inset-x-0 top-0 h-0 pointer-events-none z-50">
+      {/* Floating Dynamic Gifts overlay particles with mesmerizing rich celebration */}
+      <div className="fixed inset-0 pointer-events-none z-[999] overflow-hidden">
         <AnimatePresence>
-          {activeGifts.map((gif) => (
-            <motion.div
-              key={gif.id}
-              initial={{ opacity: 0, y: 150, scale: 0.3 }}
-              animate={{ opacity: 1, y: 30, scale: 1.4 }}
-              exit={{ opacity: 0, y: -200, scale: 0.8 }}
-              transition={{ duration: 3.2, type: "spring", stiffness: 70 }}
-              className="absolute left-1/2 -translate-x-1/2 bg-neutral-900 border border-emerald-500/30 p-3.5 rounded-2xl shadow-2xl flex flex-col items-center gap-1.5"
-            >
-              <span className="text-4xl animate-bounce">{gif.icon}</span>
-              <p className="text-[11px] text-white font-bold leading-none">
-                {gif.senderName} أهدى {gif.recipientName}
-              </p>
-              <p className="text-[10px] text-amber-400 font-bold leading-none">{gif.arabicName}</p>
-              <span className="text-[8px] bg-emerald-500/10 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-500/20 font-mono">
-                +{gif.pointsReward} نقطة
-              </span>
-            </motion.div>
-          ))}
+          {activeGifts.map((gif) => {
+            // Check if this is a massive supreme gift
+            const isPremium = gif.arabicName.includes("🕋") || gif.arabicName.includes("🌸") || gif.arabicName.includes("🕌") || gif.arabicName.includes("✈️") || gif.pointsReward >= 300;
+            return (
+              <div key={gif.id} className="absolute inset-0 flex items-center justify-center p-4">
+                
+                {/* 1. Backdrop Glow for premium gifts */}
+                {isPremium && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.45, 0] }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 4.5 }}
+                    className="absolute inset-0 bg-gradient-to-tr from-amber-500/10 via-amber-950/40 to-neutral-950/80 backdrop-blur-sm"
+                  />
+                )}
+
+                {/* 2. Golden Rays / Halos Rotating backdrop (for that high premium feel) */}
+                {isPremium && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.5, rotate: 0 }}
+                    animate={{ opacity: 0.7, scale: 1.5, rotate: 360 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 5, ease: "linear" }}
+                    className="absolute w-80 h-80 rounded-full bg-[conic-gradient(from_0deg,_var(--tw-gradient-stops))] from-amber-500/0 via-amber-500/10 to-amber-500/0 filter blur-xl"
+                  />
+                )}
+
+                {/* 3. Falling/Raining mini particles of the gift icon */}
+                {/* Generated client-side for dynamic rich physical feedback */}
+                {[...Array(isPremium ? 24 : 12)].map((_, pi) => {
+                  const xPercentage = Math.random() * 100; // random horizontal position
+                  const animDuration = 2.5 + Math.random() * 2; // random fall time
+                  const size = isPremium ? (16 + Math.random() * 24) : (12 + Math.random() * 14);
+                  return (
+                    <motion.div
+                      key={`part_${pi}`}
+                      initial={{ opacity: 0, y: -100, x: `${xPercentage}vw`, rotate: 0 }}
+                      animate={{ 
+                        opacity: [0, 1, 1, 0], 
+                        y: "105vh", 
+                        rotate: Math.random() > 0.5 ? 360 : -360 
+                      }}
+                      transition={{ duration: animDuration, ease: "easeInOut" }}
+                      className="absolute top-0 text-xl"
+                      style={{ fontSize: `${size}px` }}
+                    >
+                      {gif.icon}
+                    </motion.div>
+                  );
+                })}
+
+                {/* 4. Elegant Main Floating Card with generous branding, glowing shadows and spring entrance */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.4, y: 150 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: isPremium ? [0.4, 1.25, 1.2] : 1.1, 
+                    y: 0 
+                  }}
+                  exit={{ opacity: 0, scale: 0.8, y: -180 }}
+                  transition={{ duration: 0.8, type: "spring", stiffness: 90 }}
+                  className={`bg-neutral-900 border ${
+                    isPremium ? "border-amber-450 shadow-[0_0_40px_rgba(245,158,11,0.35)]" : "border-emerald-500/30 shadow-2xl"
+                  } p-6 md:p-8 rounded-3xl flex flex-col items-center gap-3 max-w-sm w-full text-center relative overflow-hidden`}
+                >
+                  {/* Subtle top decoration */}
+                  {isPremium && (
+                    <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500" />
+                  )}
+
+                  {/* Pulsing glow ring for icon */}
+                  <div className={`w-20 h-20 rounded-full flex items-center justify-center relative ${
+                    isPremium ? "bg-amber-500/15 border border-amber-400/40" : "bg-emerald-500/10 border border-emerald-500/20"
+                  }`}>
+                    {isPremium && (
+                      <span className="absolute inset-0 rounded-full bg-amber-400/10 animate-ping" />
+                    )}
+                    <span className={`text-5xl select-none leading-none ${isPremium ? "animate-bounce" : ""}`}>{gif.icon}</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className={`text-[10px] uppercase tracking-widest font-black leading-none ${
+                      isPremium ? "text-amber-400" : "text-emerald-400"
+                    }`}>
+                      {isPremium ? "✨ إهداء ملكي فاخر ومميز ✨" : "✨ إهداء روحاني مبارك ✨"}
+                    </p>
+                    <p className="text-xs text-neutral-300 font-bold leading-normal mt-1">
+                      <strong className="text-white text-sm">{gif.senderName}</strong> أهدى بروح الأخوة <strong className="text-amber-300 text-sm">{gif.recipientName}</strong>
+                    </p>
+                    <p className="text-sm font-extrabold text-amber-400 drop-shadow mt-1">
+                      {gif.arabicName}
+                    </p>
+                  </div>
+
+                  <div className={`mt-1 flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black ${
+                    isPremium ? "bg-amber-500/15 text-amber-300 border border-amber-500/20" : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                  } font-mono`}>
+                    +{gif.pointsReward} نقطة ثواب ومودة
+                  </div>
+                </motion.div>
+                
+              </div>
+            );
+          })}
         </AnimatePresence>
       </div>
 
@@ -868,7 +970,11 @@ export default function VoiceRoomSection({
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
                 <span className="text-[10px] bg-emerald-950/80 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full font-black font-sans backdrop-blur-sm">البث المباشر المعتمد</span>
-                <span className="text-[10px] bg-amber-950/80 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-bold backdrop-blur-sm">10 مقاعد فقط</span>
+                {currentRoomId === "public-chat" ? (
+                  <span className="text-[10px] bg-amber-950/80 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-black animate-pulse backdrop-blur-sm">دردشة وتبادل هدايا فوري 💬</span>
+                ) : (
+                  <span className="text-[10px] bg-amber-950/80 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full font-bold backdrop-blur-sm">10 مقاعد فقط</span>
+                )}
                 {isConnected ? (
                   <span className="text-[9px] text-neutral-350 drop-shadow">متصل بالشبكة الإيمانية</span>
                 ) : (
@@ -877,16 +983,16 @@ export default function VoiceRoomSection({
               </div>
               
               <h2 className="text-lg md:text-2xl font-black text-white tracking-tight flex items-center gap-2 drop-shadow-md">
-                غرفة المستخدمين الجدد 🌹
+                {currentRoomId === "public-chat" ? "الديوان العام للمؤاخاة والدردشة 💬✨" : "مجلس تلاوة السور ومنابر الإيمان 🌹"}
               </h2>
               <p className="text-xs text-neutral-200 mt-1 drop-shadow font-medium max-w-xl leading-relaxed">
-                {currentRoomId === "new-users" 
-                  ? "إدارة موقع إسلام بالعربي ترحب بكم في مجلس الحوار الصوتي والتعارف المبارك والمؤاخاة بـ 10 مقاعد!"
-                  : "إدارة موقع إسلام بالعربي ترحب بالمشتركين الجدد وتتمنى لكم مجلساً مباركاً وتلاوة عطرة بـ 10 مقاعد!"}
+                {currentRoomId === "public-chat" 
+                  ? "مساحة تفاعلية مخصصة للتعارف، الترحيب، المؤاخاة وتبادل الهدايا والبركات بشكل فوري ومستمر بدون قيود مقاعد!"
+                  : "إدارة موقع إسلام بالعربي ترحب بالمشتركين وتتمنى لكم مجلساً مباركاً وتلاوة عطرة بـ 10 مقاعد!"}
               </p>
             </div>
 
-            {currentRoomId !== "new-users" && (
+            {currentRoomId !== "public-chat" && (
               <button
                 onClick={toggleRoomLiveFeed}
                 className={`px-4 py-2.5 rounded-xl border font-bold text-xs flex items-center gap-2 transition-all cursor-pointer backdrop-blur-md shadow-md ${
@@ -904,186 +1010,356 @@ export default function VoiceRoomSection({
           </div>
         </div>
 
-        {/* The 10 Seats Interactive Layout Grid */}
-        <div className="bg-slate-950/80 border border-neutral-850 rounded-3xl p-4 sm:p-6 md:p-8 flex flex-col relative overflow-hidden shadow-2xl">
-          
-          {/* Subtle starry dark night background overlay */}
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiIHZpZXdCb3g9IjAgMCA4IDgiPjxjaXJjbGUgY3g9IjQiIGN5PSI0IiByPSIxIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMjUiLz48L3N2Zz4=')] opacity-60 pointer-events-none"></div>
+        {/* Dynamic selection of layout based on room type: New Users Room gets pure chat & gifts cards; other rooms keep normal 10 audio seats */}
+        {currentRoomId === "public-chat" ? (
+          <div className="space-y-6 animate-fade-in" id="public-chat-room-canvas">
+            {/* 1. Header label indicating the system is updated to seat-free social zone */}
+            <div className="bg-neutral-900 border border-amber-500/10 p-4 rounded-3xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">💬</span>
+                <div>
+                  <h3 className="text-sm font-black text-white">دردشة وتبادل هدايا فوري (بدون قيود مقاعد)</h3>
+                  <p className="text-[11px] text-neutral-400 leading-tight">اضغط مباشرة على أي مستخدم بالأسفل لإرسال هدية مميزة وحصد النقاط الروحية!</p>
+                </div>
+              </div>
+              <span className="text-[10px] bg-emerald-500/15 text-emerald-300 font-bold px-2.5 py-1 rounded border border-emerald-500/20">
+                مؤاخاة دافئة وثواب مستمر ✨
+              </span>
+            </div>
 
-          {/* Highly responsive columns structure to ensure seats never overflow or stack awkwardly on small screens */}
-          <div dir="rtl" className="w-full grid grid-cols-3 min-[450px]:grid-cols-4 sm:grid-cols-5 gap-x-2 gap-y-6 sm:gap-6 py-4 z-20">
-            {seats.map((seat) => {
-              const u = seat.user;
-              const isMe = u !== null && (u.id === myClientId || u.name === userProfile.name);
+            {/* 2. Interactive Members Grid without traditional locked seats constraint */}
+            <div className="bg-neutral-950/80 border border-neutral-850 rounded-3xl p-5 md:p-6 relative overflow-hidden shadow-2xl">
+              <div className="absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent pointer-events-none" />
               
-              return (
-                <div 
-                  key={seat.id} 
-                  className="flex flex-col items-center justify-center text-center relative group min-h-[95px] sm:min-h-[120px]"
-                >
-                  {/* Tactile Avatar structure */}
-                  <div className="relative animate-fade-in">
-                    
-                    {/* Glowing Speaking feedback effect */}
-                    {u && u.isSpeaking && (
-                      <motion.div
-                        className="absolute inset-0 bg-emerald-500/20 rounded-full scale-125 pointer-events-none shadow-[0_0_15px_rgba(16,185,129,0.5)]"
-                        animate={{ scale: [1.1, 1.3, 1.1] }}
-                        transition={{ repeat: Infinity, duration: 1.5 }}
-                      ></motion.div>
-                    )}
+              <h4 className="text-xs font-black text-amber-400 mb-4 flex items-center gap-2">
+                👥 الإخوة والأعضاء المتواجدون بالدردشة حالياً:
+              </h4>
 
-                    {u && !u.isMuted && (
-                      <span className="absolute -bottom-1 -left-1 bg-emerald-500 text-neutral-950 p-[3px] sm:p-1 rounded-full border border-neutral-900 z-10 transform scale-75 sm:scale-90 shadow-md animate-pulse">
-                        <Mic className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-                      </span>
-                    )}
-
-                    {u && u.isMuted && (
-                      <span className="absolute -bottom-1 -left-1 bg-neutral-950 text-neutral-500 p-[3px] sm:p-1 rounded-full border border-neutral-900 z-10 transform scale-75 sm:scale-90 shadow-md">
-                        <MicOff className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
-                      </span>
-                    )}
-
-                    {/* Occupier Profile avatar */}
-                    {u ? (
-                      <button
-                        id={`seat-avatar-btn-${seat.id}`}
-                        onClick={() => {
-                          if (isMe) {
-                            if (confirm("هل تريد مغادرة هذا المقعد الصوتي؟")) {
-                              leaveSeat();
-                            }
-                          } else {
-                            if (clientSeatedId === null) {
-                              alert("يجب عليك شغل أحد المقاعد الشاغرة أولاً لتتمكن من إرسال الهدايا للآخرين!");
-                              return;
-                            }
-                            setSelectedRecipientSeatId(seat.id);
-                            triggerTickSound(750);
-                          }
-                        }}
-                        className="relative focus:outline-none"
-                      >
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 z-10 relative">
+                {seats.map((seat) => {
+                  const u = seat.user;
+                  if (!u) return null; // Avoid empty gaps - show only active people and bots continuously!
+                  
+                  const isMe = u.id === myClientId || u.name === userProfile.name;
+                  const isBot = u.id.startsWith("bot_");
+                  
+                  return (
+                    <motion.div
+                      key={`participant_${seat.id}`}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className={`p-4 rounded-2xl border flex flex-col items-center text-center justify-between gap-3 relative transition-all ${
+                        isMe 
+                          ? "bg-amber-500/5 border-amber-400/30 shadow-[0_4px_15px_rgba(251,191,36,0.1)]" 
+                          : "bg-neutral-900 border-neutral-800/80 hover:border-amber-500/10 hover:shadow-lg"
+                      }`}
+                    >
+                      {/* Avatar decoration */}
+                      <div className="relative">
+                        {u.isSpeaking && (
+                          <motion.div
+                            className="absolute inset-0 bg-emerald-500/20 rounded-full scale-125 pointer-events-none"
+                            animate={{ scale: [1.1, 1.3, 1.1] }}
+                            transition={{ repeat: Infinity, duration: 1.5 }}
+                          />
+                        )}
                         <img
-                          id={`seat-avatar-${seat.id}`}
                           src={u.avatar}
-                          alt="Participant Avatar"
-                          className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full border bg-neutral-950 p-[1.5px] sm:p-1 transition-all ${
+                          alt={u.name}
+                          className={`w-14 h-14 rounded-full border bg-neutral-950 p-1 ${
                             isMe 
-                              ? "border-amber-400 scale-105 shadow-[0_0_12px_rgba(251,191,36,0.5)]" 
-                              : u.isSpeaking 
-                                ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" 
-                                : "border-neutral-700/80"
-                          } shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-105 active:scale-95`}
+                              ? "border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)]" 
+                              : "border-neutral-700"
+                          }`}
                           referrerPolicy="no-referrer"
                         />
-                      </button>
-                    ) : (
-                      // Beautiful active empty seat placeholder with direct prompt to tap and talk
-                      <button
-                        id={`take-seat-btn-${seat.id}`}
-                        onClick={() => takeSeat(seat.id)}
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border border-dashed border-amber-500/35 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 hover:scale-105 active:scale-95 flex items-center justify-center text-amber-500/80 transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-md animate-pulse"
-                        title="انقر لتشغل هذا المقعد وتنضم للحوار"
-                      >
-                        <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Seat Labels section */}
-                  {u ? (
-                    <div className="text-center mt-1 w-full max-w-[60px] sm:max-w-[100px] flex flex-col items-center select-none">
-                      <p className={`text-[9.5px] sm:text-[11.5px] font-black truncate w-full leading-tight ${isMe ? "text-amber-400 font-extrabold" : "text-neutral-200"}`}>
-                        {u.name.split(" ")[0]}
-                      </p>
-                      
-                      <div className="flex items-center justify-center gap-0.5 mt-0.5 w-full">
-                        <span className="text-[8px] text-neutral-400 font-sans font-medium truncate">
-                          {u.points} 🪙
+                        <span className="absolute -bottom-1 -right-1 bg-neutral-950 text-neutral-400 p-0.5 rounded-full border border-neutral-800 text-[10px] font-bold">
+                          {isBot ? "🤖" : "👤"}
                         </span>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center mt-1 select-none">
-                      <span className="text-[9.5px] sm:text-[11px] font-extrabold text-amber-400 tracking-wide leading-none">
-                        مقعد {seat.id + 1}
+
+                      {/* Info layout */}
+                      <div className="space-y-1 w-full">
+                        <p className={`text-xs font-black truncate w-full leading-none ${isMe ? "text-amber-400" : "text-white"}`}>
+                          {u.name}
+                        </p>
+                        <div className="flex flex-col items-center gap-1 mt-1.5">
+                          <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
+                            isMe 
+                              ? "bg-amber-500/20 text-amber-300" 
+                              : isBot && u.name.includes("مستشار")
+                              ? "bg-indigo-500/15 text-indigo-300"
+                              : "bg-neutral-800 text-neutral-400"
+                          }`}>
+                            {isMe ? "حسابك (نشط)" : isBot && u.name.includes("مستشار") ? "مستشار ترحيبي 🎙️" : "عضو جديد 🆕"}
+                          </span>
+                          <span className="text-[10px] font-mono text-amber-500 font-bold leading-none">
+                            {u.points} 🪙
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Gift Dispatch trigger */}
+                      {isMe ? (
+                        <div className="w-full text-center py-2 text-[9px] text-neutral-500 font-sans leading-none">
+                          تلقي ثواب الجلوس (+20) 📈
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          id={`direct-gift-trigger-${seat.id}`}
+                          onClick={() => {
+                            setSelectedRecipientSeatId(seat.id);
+                            triggerTickSound(750);
+                          }}
+                          className="w-full py-2 bg-gradient-to-l from-amber-400 to-amber-500 hover:brightness-110 text-neutral-900 font-black text-[10px] rounded-xl transition-all active:scale-95 cursor-pointer shadow-sm flex items-center justify-center gap-1"
+                        >
+                          <span>أهدهِ هدية 🎁</span>
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Immersive Live Chat Block inside mainstream area */}
+            <div className="bg-neutral-950/60 p-5 rounded-3xl border border-neutral-850 flex flex-col gap-4 min-h-[420px] max-h-[550px] shadow-2xl relative">
+              <div className="flex justify-between items-center border-b border-neutral-850 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <h3 className="font-extrabold text-white text-xs md:text-sm">سجل المحادثات والبرمجة التفاعلية للمؤاخاة</h3>
+                </div>
+                <span className="text-[9px] text-neutral-500">{messages.length} رسالة نشطة</span>
+              </div>
+
+              {/* Scrolling messages container */}
+              <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin scrollbar-thumb-neutral-800 text-right">
+                {messages.map((m, idx) => (
+                  <div 
+                    key={`main_chat_${m.id}_${idx}`} 
+                    className={`p-3.5 rounded-2xl border text-right transition-all text-xs leading-relaxed ${
+                      m.isSystem 
+                        ? "bg-emerald-950/10 border-emerald-500/10 text-emerald-300 italic" 
+                        : "bg-neutral-900 border-neutral-850/80 text-neutral-200"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className={`font-black text-[10px] ${m.isSystem ? "text-emerald-400 font-extrabold" : "text-amber-400"}`}>
+                        {m.sender}
                       </span>
-                      <span className="text-[7.5px] sm:text-[9.5px] text-neutral-400/90 leading-none mt-0.5">
-                        اضغط للتحدث
-                      </span>
+                      <span className="text-[8px] text-neutral-600 font-mono">{m.time}</span>
                     </div>
+                    <p className="leading-relaxed whitespace-pre-line text-neutral-200">{m.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Typing inputs element */}
+              <div className="flex gap-2.5 pt-3 border-t border-neutral-850">
+                <input
+                  id="voice-room-web-input-chat"
+                  type="text"
+                  placeholder="اكتب موعظة، مشاركة أو ترحيباً بالإخوة حالاً..."
+                  value={typedMessage}
+                  onChange={(e) => setTypedMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && postChatMessage()}
+                  className="flex-1 bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 placeholder-neutral-500 px-4 py-3 rounded-xl outline-none focus:border-amber-400 transition-colors text-right"
+                />
+                <button
+                  type="button"
+                  id="main-chat-submit-btn-users"
+                  onClick={postChatMessage}
+                  className="bg-amber-500 hover:bg-amber-450 px-4 py-3 rounded-xl font-bold text-neutral-950 hover:text-black transition-colors shrink-0 cursor-pointer flex items-center justify-center"
+                  title="إرسال من فضاء المؤاخاة"
+                >
+                  <Send className="w-4 h-4 shrink-0" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* OTHERWISE: RENDER CONVENTIONAL 10 AUDIO SEATS INTERACTIVE ROUND TABLE */
+          <div className="bg-slate-950/80 border border-neutral-850 rounded-3xl p-4 sm:p-6 md:p-8 flex flex-col relative overflow-hidden shadow-2xl">
+            
+            {/* Subtle starry dark night background overlay */}
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiIHZpZXdCb3g9IjAgMCA4IDgiPjxjaXJjbGUgY3g9IjQiIGN5PSI0IiByPSIxIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMjUiLz48L3N2Zz4=')] opacity-60 pointer-events-none"></div>
+
+            {/* Highly responsive columns structure to ensure seats never overflow or stack awkwardly on small screens */}
+            <div dir="rtl" className="w-full grid grid-cols-3 min-[450px]:grid-cols-4 sm:grid-cols-5 gap-x-2 gap-y-6 sm:gap-6 py-4 z-20">
+              {seats.map((seat) => {
+                const u = seat.user;
+                const isMe = u !== null && (u.id === myClientId || u.name === userProfile.name);
+                
+                return (
+                  <div 
+                    key={seat.id} 
+                    className="flex flex-col items-center justify-center text-center relative group min-h-[95px] sm:min-h-[120px]"
+                  >
+                    {/* Tactile Avatar structure */}
+                    <div className="relative animate-fade-in">
+                      
+                      {/* Glowing Speaking feedback effect */}
+                      {u && u.isSpeaking && (
+                        <motion.div
+                          className="absolute inset-0 bg-emerald-500/20 rounded-full scale-125 pointer-events-none shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                          animate={{ scale: [1.1, 1.3, 1.1] }}
+                          transition={{ repeat: Infinity, duration: 1.5 }}
+                        ></motion.div>
+                      )}
+
+                      {u && !u.isMuted && (
+                        <span className="absolute -bottom-1 -left-1 bg-emerald-500 text-neutral-950 p-[3px] sm:p-1 rounded-full border border-neutral-900 z-10 transform scale-75 sm:scale-90 shadow-md animate-pulse">
+                          <Mic className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                        </span>
+                      )}
+
+                      {u && u.isMuted && (
+                        <span className="absolute -bottom-1 -left-1 bg-neutral-950 text-neutral-500 p-[3px] sm:p-1 rounded-full border border-neutral-900 z-10 transform scale-75 sm:scale-90 shadow-md">
+                          <MicOff className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5" />
+                        </span>
+                      )}
+
+                      {/* Occupier Profile avatar */}
+                      {u ? (
+                        <button
+                          id={`seat-avatar-btn-${seat.id}`}
+                          onClick={() => {
+                            if (isMe) {
+                              if (confirm("هل تريد مغادرة هذا المقعد الصوتي؟")) {
+                                leaveSeat();
+                              }
+                            } else {
+                              if (clientSeatedId === null) {
+                                alert("يجب عليك شغل أحد المقاعد الشاغرة أولاً لتتمكن من إرسال الهدايا للآخرين!");
+                                return;
+                              }
+                              setSelectedRecipientSeatId(seat.id);
+                              triggerTickSound(750);
+                            }
+                          }}
+                          className="relative focus:outline-none"
+                        >
+                          <img
+                            id={`seat-avatar-${seat.id}`}
+                            src={u.avatar}
+                            alt="Participant Avatar"
+                            className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full border bg-neutral-950 p-[1.5px] sm:p-1 transition-all ${
+                              isMe 
+                                ? "border-amber-400 scale-105 shadow-[0_0_12px_rgba(251,191,36,0.5)]" 
+                                : u.isSpeaking 
+                                  ? "border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]" 
+                                  : "border-neutral-700/80"
+                            } shadow-[0_4px_12px_rgba(0,0,0,0.6)] hover:scale-105 active:scale-95`}
+                            referrerPolicy="no-referrer"
+                          />
+                        </button>
+                      ) : (
+                        // Beautiful active empty seat placeholder with direct prompt to tap and talk
+                        <button
+                          id={`take-seat-btn-${seat.id}`}
+                          onClick={() => takeSeat(seat.id)}
+                          className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border border-dashed border-amber-500/35 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-400 hover:scale-105 active:scale-95 flex items-center justify-center text-amber-500/80 transition-all cursor-pointer shadow-[0_4px_12px_rgba(0,0,0,0.3)] backdrop-blur-md animate-pulse"
+                          title="انقر لتشغل هذا المقعد وتنضم للحوار"
+                        >
+                          <UserPlus className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/80 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Seat Labels section */}
+                    {u ? (
+                      <div className="text-center mt-1 w-full max-w-[60px] sm:max-w-[100px] flex flex-col items-center select-none">
+                        <p className={`text-[9.5px] sm:text-[11.5px] font-black truncate w-full leading-tight ${isMe ? "text-amber-400 font-extrabold" : "text-neutral-200"}`}>
+                          {u.name.split(" ")[0]}
+                        </p>
+                        
+                        <div className="flex items-center justify-center gap-0.5 mt-0.5 w-full">
+                          <span className="text-[8px] text-neutral-400 font-sans font-medium truncate">
+                            {u.points} 🪙
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center mt-1 select-none">
+                        <span className="text-[9.5px] sm:text-[11px] font-extrabold text-amber-400 tracking-wide leading-none">
+                          مقعد {seat.id + 1}
+                        </span>
+                        <span className="text-[7.5px] sm:text-[9.5px] text-neutral-400/90 leading-none mt-0.5">
+                          اضغط للتحدث
+                        </span>
+                      </div>
+                    )}
+
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Interactive Seat Microphone & talk dashboard if user sitsdown */}
+            {clientSeatedId !== null && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full mt-6 bg-neutral-950 p-4 rounded-2xl border border-neutral-850 flex flex-col md:flex-row justify-between items-center gap-4 z-20"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">
+                    <Mic className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-white">أنت تشغل المقعد رقم {clientSeatedId + 1} حالياً</p>
+                    <p className="text-[10px] text-neutral-400">يمكنك كتم الميكروفون أو تنشيط التحدث البصري ليرى المجلس موجاتك الصوتية.</p>
+                  </div>
+                </div>
+
+                {/* Action triggers */}
+                <div className="flex items-center gap-2">
+                  
+                  <button
+                    id={`mic-toggle-at-seat-${clientSeatedId}`}
+                    onClick={toggleMute}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
+                      isClientMuted 
+                        ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-neutral-900" 
+                        : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-neutral-900"
+                    }`}
+                  >
+                    {isClientMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    <span>{isClientMuted ? "المايك مغلق (كتم)" : "المايك مفتوح (نشط)"}</span>
+                  </button>
+
+                  {/* Simulated Click to Speack trigger to fluctuating ripple effects */}
+                  {!isClientMuted && (
+                    <button
+                      id="simulate-voice-stream-btn"
+                      onMouseDown={() => handleClientSpeakingLoop(true)}
+                      onMouseUp={() => handleClientSpeakingLoop(false)}
+                      onTouchStart={() => handleClientSpeakingLoop(true)}
+                      onTouchEnd={() => handleClientSpeakingLoop(false)}
+                      className={`px-4 py-2 ${
+                        isClientSpeaking ? "bg-amber-500 text-neutral-950 border-amber-400 font-extrabold" : "bg-neutral-900 text-neutral-300 border-neutral-800"
+                      } border rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all select-none cursor-pointer`}
+                    >
+                      {isClientSpeaking ? "تحدث بصوتك مسموع..." : "اضغط باستمرار للتحدث"}
+                    </button>
                   )}
 
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Interactive Seat Microphone & talk dashboard if user sitsdown */}
-          {clientSeatedId !== null && (
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full mt-6 bg-neutral-950 p-4 rounded-2xl border border-neutral-850 flex flex-col md:flex-row justify-between items-center gap-4 z-20"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shrink-0">
-                  <Mic className="w-5 h-5 text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-white">أنت تشغل المقعد رقم {clientSeatedId + 1} حالياً</p>
-                  <p className="text-[10px] text-neutral-400">يمكنك كتم الميكروفون أو تنشيط التحدث البصري ليرى المجلس موجاتك الصوتية.</p>
-                </div>
-              </div>
-
-              {/* Action triggers */}
-              <div className="flex items-center gap-2">
-                
-                <button
-                  id={`mic-toggle-at-seat-${clientSeatedId}`}
-                  onClick={toggleMute}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
-                    isClientMuted 
-                      ? "bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-neutral-900" 
-                      : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-neutral-900"
-                  }`}
-                >
-                  {isClientMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                  <span>{isClientMuted ? "المايك مغلق (كتم)" : "المايك مفتوح (نشط)"}</span>
-                </button>
-
-                {/* Simulated Click to Speack trigger to fluctuating ripple effects */}
-                {!isClientMuted && (
                   <button
-                    id="simulate-voice-stream-btn"
-                    onMouseDown={() => handleClientSpeakingLoop(true)}
-                    onMouseUp={() => handleClientSpeakingLoop(false)}
-                    onTouchStart={() => handleClientSpeakingLoop(true)}
-                    onTouchEnd={() => handleClientSpeakingLoop(false)}
-                    className={`px-4 py-2 ${
-                      isClientSpeaking ? "bg-amber-500 text-neutral-950 border-amber-400 font-extrabold" : "bg-neutral-900 text-neutral-300 border-neutral-800"
-                    } border rounded-xl text-xs font-bold hover:bg-neutral-800 transition-all select-none cursor-pointer`}
+                    id="client-leave-seat-bottom-btn"
+                    onClick={leaveSeat}
+                    className="bg-neutral-900 hover:bg-red-950 border border-neutral-800 hover:border-red-500/20 p-2 rounded-xl text-xs font-bold text-neutral-400 hover:text-red-400 transition-colors cursor-pointer select-none"
+                    title="مغادرة المجلس الصوتي"
                   >
-                    {isClientSpeaking ? "تحدث بصوتك مسموع..." : "اضغط باستمرار للتحدث"}
+                    مغادرة المقعد
                   </button>
-                )}
 
-                <button
-                  id="client-leave-seat-bottom-btn"
-                  onClick={leaveSeat}
-                  className="bg-neutral-900 hover:bg-red-950 border border-neutral-800 hover:border-red-500/20 p-2 rounded-xl text-xs font-bold text-neutral-400 hover:text-red-400 transition-colors cursor-pointer select-none"
-                  title="مغادرة المجلس الصوتي"
-                >
-                  مغادرة المقعد
-                </button>
+                </div>
+              </motion.div>
+            )}
 
-              </div>
-            </motion.div>
-          )}
-
-        </div>
+          </div>
+        )}
 
         {/* New Users welcome gifts claiming banner */}
         {!claimedWelcomeBag && (
@@ -1134,7 +1410,7 @@ export default function VoiceRoomSection({
             <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
               <h3 className="font-extrabold text-white text-sm flex items-center gap-1.5">
                 <Gift className="w-4 h-4 text-amber-500 animate-pulse" />
-                إرسال هدية للمقعد رقم {selectedRecipientSeatId + 1}
+                إرسال هدية إلى {currentRoomId === "public-chat" ? (seats[selectedRecipientSeatId]?.user?.name || "عضو جديد") : `المقعد رقم ${selectedRecipientSeatId + 1}`}
               </h3>
               <button
                 onClick={() => setSelectedRecipientSeatId(null)}
@@ -1186,57 +1462,59 @@ export default function VoiceRoomSection({
           </motion.div>
         )}
 
-        {/* Live chat-box */}
-        <div className="bg-neutral-900/60 p-4 rounded-2xl border border-neutral-800 flex flex-col gap-4 flex-1 min-h-[360px] max-h-[500px]">
-          <h3 className="font-extrabold text-white text-xs md:text-sm flex items-center gap-1.5 border-b border-neutral-800 pb-2">
-            <Clock className="w-4 h-4 text-neutral-400" />
-            سجل وتذاكر المودة بالمجلس
-          </h3>
+        {/* Live chat-box (shown only in traditional 10 seats rooms; hidden in New Users Room where the widescreen central chat is displayed) */}
+        {currentRoomId !== "public-chat" && (
+          <div className="bg-neutral-900/60 p-4 rounded-2xl border border-neutral-800 flex flex-col gap-4 flex-1 min-h-[360px] max-h-[500px]">
+            <h3 className="font-extrabold text-white text-xs md:text-sm flex items-center gap-1.5 border-b border-neutral-800 pb-2">
+              <Clock className="w-4 h-4 text-neutral-400" />
+              سجل وتذاكر المودة بالمجلس
+            </h3>
 
-          {/* List of scroll messages */}
-          <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin scrollbar-thumb-neutral-850 text-right">
-            {messages.map((m, idx) => (
-              <div 
-                key={`${m.id}-${idx}`} 
-                className={`p-3 rounded-xl border text-right transition-all text-xs leading-relaxed ${
-                  m.isSystem 
-                    ? "bg-emerald-950/15 border-emerald-500/10 text-emerald-300 italic" 
-                    : "bg-neutral-950 border-neutral-900 text-neutral-300"
-                }`}
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className={`font-black text-[10px] ${m.isSystem ? "text-emerald-400" : "text-neutral-400"}`}>
-                    {m.sender}
-                  </span>
-                  <span className="text-[8px] text-neutral-600 font-mono">{m.time}</span>
+            {/* List of scroll messages */}
+            <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 scrollbar-thin scrollbar-thumb-neutral-850 text-right">
+              {messages.map((m, idx) => (
+                <div 
+                  key={`${m.id}-${idx}`} 
+                  className={`p-3 rounded-xl border text-right transition-all text-xs leading-relaxed ${
+                    m.isSystem 
+                      ? "bg-emerald-950/15 border-emerald-500/10 text-emerald-300 italic" 
+                      : "bg-neutral-950 border-neutral-900 text-neutral-300"
+                  }`}
+                >
+                  <div className="flex justify-between items-center mb-1">
+                    <span className={`font-black text-[10px] ${m.isSystem ? "text-emerald-400" : "text-neutral-400"}`}>
+                      {m.sender}
+                    </span>
+                    <span className="text-[8px] text-neutral-600 font-mono">{m.time}</span>
+                  </div>
+                  <p className="leading-relaxed whitespace-pre-line">{m.text}</p>
                 </div>
-                <p className="leading-relaxed whitespace-pre-line">{m.text}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Input text dispatcher */}
-          <div className="flex gap-2.5 pt-2 border-t border-neutral-800">
-            <input
-              id="voice-room-chat-input"
-              type="text"
-              placeholder="اكتب رسالة نصية أو موعظة دافئة..."
-              value={typedMessage}
-              onChange={(e) => setTypedMessage(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && postChatMessage()}
-              className="flex-1 bg-neutral-950 border border-neutral-800 text-xs text-neutral-200 placeholder-neutral-500 px-3 py-2.5 rounded-xl outline-none focus:border-amber-400 transition-colors"
-            />
-            <button
-              id="send-voice-room-msg-btn"
-              onClick={postChatMessage}
-              className="bg-amber-500 hover:bg-amber-450 p-2.5 rounded-xl font-bold text-neutral-950 hover:text-black transition-colors shrink-0 cursor-pointer"
-              title="إرسال"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
+            {/* Input text dispatcher */}
+            <div className="flex gap-2.5 pt-2 border-t border-neutral-800">
+              <input
+                id="voice-room-chat-input"
+                type="text"
+                placeholder="اكتب رسالة نصية أو موعظة دافئة..."
+                value={typedMessage}
+                onChange={(e) => setTypedMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && postChatMessage()}
+                className="flex-1 bg-neutral-950 border border-neutral-800 text-xs text-neutral-200 placeholder-neutral-500 px-3 py-2.5 rounded-xl outline-none focus:border-amber-400 transition-colors"
+              />
+              <button
+                id="send-voice-room-msg-btn"
+                onClick={postChatMessage}
+                className="bg-amber-500 hover:bg-amber-450 p-2.5 rounded-xl font-bold text-neutral-950 hover:text-black transition-colors shrink-0 cursor-pointer"
+                title="إرسال"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
 
-        </div>
+          </div>
+        )}
 
         {/* Offline helper details */}
         <div className="bg-neutral-900/60 p-4 rounded-2xl border border-neutral-800 flex items-start gap-2.5">

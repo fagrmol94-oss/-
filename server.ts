@@ -230,6 +230,22 @@ app.post("/api/support", async (req: Request, res: Response) => {
       return;
     }
 
+    let isAbuseTriggered = false;
+    let banReason = "";
+
+    // 1. Precise local list of harsh Arabic slurs/insults to trigger instant ban without waiting
+    const blacklistedSlurs = [
+      "شرموط", "منيوك", "كس اختك", "يا ابن ال", "عرص", "سافل", "حقير", "حيوان", "جحش", "تفو", 
+      "كسمك", "ممنيوك", "قحبة", "ممحون", "خول", "قواد"
+    ];
+    
+    const cleanMessage = message.trim();
+    const hasSlur = blacklistedSlurs.some(slur => cleanMessage.includes(slur));
+    if (hasSlur) {
+      isAbuseTriggered = true;
+      banReason = "استخدام ألفاظ نابية بذيئة ومسيئة في منصة إسلام بالعربي";
+    }
+
     const ai = getAi();
     
     const systemInstruction = `أنت "إسلام بالعربي بوت" (Islam Arabic Bot) - موظف خدمة العملاء والدعم الفني الذكي والودود لمنصة "إسلام بالعربي" الشهيرة.
@@ -248,7 +264,13 @@ app.post("/api/support", async (req: Request, res: Response) => {
 3. نبرة الرد وأسلوب المحادثة:
    * تحدّث باللغة العربية المودة الميسّرة وبكل هدوء واحترام، واعرض تيسيراً لكل عقبة.
    * ابدأ ردودك بترحيب مبارك مثل: "أهلاً بك يا فخر السائلين رعاك الله، معك إسلام بالعربي بوت للدعم الفني..."
-   * إذا تعذّر عليك حل المشكلة تقنياً، ركّز على طمأنتهم وأخبرهم أن الإدارة متواجدة دوماً، ويمكن للأستاذ أحمد علاء مراجعة حساباتهم وشحنها يدوياً إذا لزم الأمر بمجرد الإرسال له على الرقم 01507251444.`;
+   * إذا تعذّر عليك حل المشكلة تقنياً، ركّز على طمأنتهم وأخبرهم أن الإدارة متواجدة دوماً، ويمكن للأستاذ أحمد علاء مراجعة حساباتهم وشحنها يدوياً إذا لزم الأمر بمجرد الإرسال له على الرقم 01507251444.
+
+⚠️ قاعدة أمان لكشف الإساءات والتطاول (الحظر التلقائي للماكرين والمسيئين):
+إذا وجدّت أن رسالة المستخدم تحتوي على سخرية قبيحة، أو شتائم غير لائقة، أو استهزاء ديني، أو تطاول لفظي عليك كموظف أو على إدارة الموقع (الأستاذ أحمد علاء)، يجب عليك حظره فورا!
+عند الرغبة بحظر المستخدم، يجب أن تبدأ إجابتك بالسطر الدقيق التالي:
+TRIGGER_USER_ABUSE_BAN: [اكتب هنا مسوغ وسبب الحظر بوضوح تلو التجاوز]
+ثم تتبعه بجملة إعلام بالحظر حازمة ومؤدبة بالسطر التالي.`;
 
     const historyLog = history && Array.isArray(history) 
       ? history.slice(-6).map((h: any) => ({
@@ -266,8 +288,30 @@ app.post("/api/support", async (req: Request, res: Response) => {
       }
     };
 
-    const response = await sendChatMessageWithFallback(ai, chatParams, { message: message });
-    res.json({ reply: response.text });
+    let replyText = "";
+    if (!isAbuseTriggered) {
+      const response = await sendChatMessageWithFallback(ai, chatParams, { message: message });
+      replyText = response.text || "";
+
+      if (replyText.includes("TRIGGER_USER_ABUSE_BAN:")) {
+        isAbuseTriggered = true;
+        const match = replyText.match(/TRIGGER_USER_ABUSE_BAN:\s*([^\n]+)/);
+        banReason = match ? match[1].trim() : "تجاوز حدود الأدب والآداب العامة مع منسوبي الدعم الفني";
+        // Clean replyText of the technical instruction
+        replyText = replyText.replace(/TRIGGER_USER_ABUSE_BAN:\s*[^\n]+/, "").trim();
+        if (!replyText) {
+          replyText = "تم حظر حسابك بقرار تلقائي وفوري من خوارزميات إسلام بالعربي بوت بسبب التطاول وإساءة استخدام المنصة.";
+        }
+      }
+    } else {
+      replyText = "تم تفعيل حظر الحساب فوراً بسبب استخدام ألفاظ نابية غير مقبولة.";
+    }
+
+    res.json({ 
+      reply: replyText, 
+      isAbuseTriggered, 
+      banReason: banReason || "استخدام تراكيب بذيئة أو مسيئة"
+    });
   } catch (error: any) {
     console.error("Support API Error:", error);
     res.status(500).json({
@@ -371,9 +415,39 @@ interface VoiceRoom {
 // Preloaded with friendly welcoming bot companions to make the space lively from the first click!
 let rooms: VoiceRoom[] = [
   {
-    id: "new-users",
-    title: "غرفة المستخدمين الجدد | إدارة موقع إسلام بالعربي ترحب بكم 🌹",
-    description: "إدارة موقع إسلام بالعربي ترحب بكم في الغرفة المعتمدة بـ 10 مقاعد فقط للاستماع والمؤاخاة وطلب العلم للأعضاء الجدد والمنضمين حديثاً.",
+    id: "public-chat",
+    title: "الديوان العام للمؤاخاة والدردشة 💬✨",
+    description: "مساحة تفاعلية مخصصة للتعارف، الترحيب، المؤاخاة وتبادل الهدايا والبركات بشكل فوري ومستمر بدون قيود مقاعد لجميع المشتركين.",
+    ownerName: "إدارة الموقع",
+    isCustom: false,
+    activeAudioTopic: {
+      title: "نظام دردشة وتبادل هدايا فوري (بدون مقاعد)",
+      streamUrl: "",
+      isPlaying: false,
+      surahId: undefined
+    },
+    seats: [
+      { id: 0, user: { id: "bot_1", name: "بلال الأنصاري (مستشار) 📖", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=ansari", isNewUser: false, points: 2350, isMuted: false, isSpeaking: false } },
+      { id: 1, user: null },
+      { id: 2, user: { id: "bot_2", name: "مريم العتيبي ✨", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=maryam", isNewUser: false, points: 890, isMuted: true, isSpeaking: false } },
+      { id: 3, user: null },
+      { id: 4, user: { id: "bot_3", name: "يوسف الصادق ☕", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=yousef", isNewUser: false, points: 540, isMuted: false, isSpeaking: false } },
+      { id: 5, user: null },
+      { id: 6, user: { id: "bot_4", name: "سارة الشمري 🌸", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=sara", isNewUser: false, points: 430, isMuted: false, isSpeaking: false } },
+      { id: 7, user: null },
+      { id: 8, user: { id: "bot_5", name: "عبدالله الهاشمي ⭐", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=hashem", isNewUser: false, points: 710, isMuted: false, isSpeaking: false } },
+      { id: 9, user: null }
+    ],
+    messages: [
+      { id: "msg_init_admin_welcome", sender: "إدارة موقع إسلام بالعربي", text: "أهلاً ومرحباً بكم معاً في مجلس المؤاخاة والديوان العام للدردشة! ترحب بكم إدارة الموقع وتتمنى لكم رحلة إيمانية مباركة في تبادل الهدايا والدردشة الطيبة! 💬✨", time: "الآن", isSystem: true },
+      { id: "msg_init_1", sender: "النظام الذكي", text: "بناء على طلبكم، تم تفعيل الديوان العام بنظام دردشة وتبادل هدايا فوري ومميز وخالٍ من قيود المقاعد لراحة الجميع.", time: "الآن", isSystem: true },
+      { id: "msg_init_2", sender: "بلال الأنصاري (مستشار)", text: "السلام عليكم ورحمة الله وبركاته إخواني وأخواتي، حياكم الله في ديواننا العام بنظام الدردشة الحرة والترحيب المتبادل بالهدايا الروحية الرائعة! نورتونا 💖", time: "الآن" }
+    ]
+  },
+  {
+    id: "quran-majlis",
+    title: "مجلس تلاوة وتدارس سور القرآن الكريم 📖🎧",
+    description: "غرفة إيمانية صوتية معتمدة بـ 10 مقاعد محددة للاستماع لتلاوات القرآن وصوتيات الذكر الحكيم للتقرب والخشوع المشترك.",
     ownerName: "إدارة الموقع",
     isCustom: false,
     activeAudioTopic: {
@@ -383,21 +457,19 @@ let rooms: VoiceRoom[] = [
       surahId: undefined
     },
     seats: [
-      { id: 0, user: { id: "bot_1", name: "بلال الأنصاري (مستشار) 📖", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=ansari", isNewUser: false, points: 2350, isMuted: false, isSpeaking: false } },
+      { id: 0, user: null },
       { id: 1, user: null },
-      { id: 2, user: { id: "bot_2", name: "مريم العتيبي (جديدة) ✨", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=maryam", isNewUser: true, points: 250, isMuted: true, isSpeaking: false } },
+      { id: 2, user: null },
       { id: 3, user: null },
-      { id: 4, user: { id: "bot_3", name: "يوسف الصادق (جديد) ☕", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=yousef", isNewUser: true, points: 300, isMuted: false, isSpeaking: false } },
+      { id: 4, user: null },
       { id: 5, user: null },
-      { id: 6, user: { id: "bot_4", name: "سارة الشمري (جديدة) 🌸", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=sara", isNewUser: true, points: 150, isMuted: false, isSpeaking: false } },
+      { id: 6, user: null },
       { id: 7, user: null },
-      { id: 8, user: { id: "bot_5", name: "عبدالله الهاشمي (جديد) ⭐", avatar: "https://api.dicebear.com/7.x/adventurer/svg?seed=hashem", isNewUser: true, points: 410, isMuted: false, isSpeaking: false } },
+      { id: 8, user: null },
       { id: 9, user: null }
     ],
     messages: [
-      { id: "msg_init_admin_welcome", sender: "إدارة موقع إسلام بالعربي", text: "أهلاً ومرحباً بكم في غرفتكم الجديدة بـ 10 مقاعد؛ إدارة موقع إسلام بالعربي ترحب بكم ترحيباً حاراً وتتمنى لكم رحلة إيمانية مباركة في الاستماع للقرآن والمؤاخاة العطرة! 🌹", time: "الآن", isSystem: true },
-      { id: "msg_init_1", sender: "النظام الإيماني", text: "انضموا الآن إلى مجلس الأعضاء والمستخدمين الجدد للاستماع وتبادل الدعم والهدايا الروحية المباركة.", time: "الآن", isSystem: true },
-      { id: "msg_init_2", sender: "بلال الأنصاري (مستشار)", text: "السلام عليكم ورحمة الله وبركاته إخواني وأخواتي الجدد في الله، حياكم الله جميعاً وعمر الله أوقاتكم بالطاعات والذكر الجميل. نورت غرفتنا المعتمدة بـ 10 مقاعد فقط.", time: "الآن" }
+      { id: "msg_init_quran_welcome", sender: "إدارة الموقع", text: "مرحباً بكم في مجلس التلاوة العطرة. انضموا لأحد المقاعد للجلوس وتفعيل الرعاية والاستماع لتلاوات السور المباركة مع الإخوة.", time: "الآن", isSystem: true }
     ]
   }
 ];
@@ -545,7 +617,7 @@ async function startServer() {
 
   wss.on("connection", (ws: WebSocket) => {
     const cliId = "cli_" + Math.random().toString(36).substring(2, 9);
-    clients.set(ws, { id: cliId, joinedRoomId: "new-users" });
+    clients.set(ws, { id: cliId, joinedRoomId: "public-chat" });
 
     // Instantly send rooms list overview
     ws.send(JSON.stringify({
@@ -561,15 +633,15 @@ async function startServer() {
       }))
     }));
 
-    // Send initial "new-users" room status
-    const initialRoom = rooms.find(r => r.id === "new-users")!;
+    // Send initial "public-chat" room status
+    const initialRoom = rooms.find(r => r.id === "public-chat")!;
     ws.send(JSON.stringify({
       type: "ROOM_INIT",
       seats: initialRoom.seats,
       messages: initialRoom.messages,
       activeAudioTopic: initialRoom.activeAudioTopic,
       myClientId: cliId,
-      currentRoomId: "new-users"
+      currentRoomId: "public-chat"
     }));
 
     ws.on("message", (message: string) => {
@@ -729,12 +801,12 @@ async function startServer() {
               broadcastToRoom(meta.joinedRoomId, { type: "ROOM_SEATS_UPDATE", seats: currentRoom.seats });
 
               // Welcome bot reply if we are in one of preloaded channels
-              if (meta.joinedRoomId === "new-users") {
+              if (meta.joinedRoomId === "public-chat") {
                 setTimeout(() => {
                   const welcomeMsg: RoomMessage = {
                     id: "welcome_bot_" + Date.now(),
                     sender: "بلال الأنصاري (مستشار)",
-                    text: `أهلاً بك يا ${reqUser.name} في مقعد مجلس الجدد! حططت رحالك أهلاً ونزلت سهلاً. تفضل خذ هدية ترحيبية مباركة لتبدأ مسيرتك الإيمانية بنشاط! 🎁`,
+                    text: `أهلاً بك يا ${reqUser.name} في ديوان المؤاخاة والدردشة العام! حططت رحالك أهلاً ونزلت سهلاً في هذا الفضاء الطيب والمبارك. تفضل خذ هدية ترحيبية مباركة لتبدأ وتشارك بحرية! 🎁`,
                     time: new Date().toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" }),
                   };
                   currentRoom.messages.push(welcomeMsg);

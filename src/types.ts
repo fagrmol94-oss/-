@@ -30,6 +30,10 @@ export interface UserProfile {
   loginProvider?: "google" | "facebook" | null;
   avatarUrl?: string;
   customAvatarUrl?: string;
+  isBanned?: boolean;
+  banReason?: string;
+  siteRole?: "regular" | "admin" | "moderator" | "owner";
+  adminGrantedBadges?: string[]; // Badges granted specifically by the owner/admin system
 }
 
 export interface Badge {

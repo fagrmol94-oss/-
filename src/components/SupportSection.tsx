@@ -13,7 +13,16 @@ import {
   MessageSquare,
   Smartphone,
   ShieldCheck,
-  Headphones
+  Headphones,
+  Crown,
+  Shield,
+  Settings,
+  ShieldAlert,
+  UserX,
+  UserCheck2,
+  Lock,
+  Unlock,
+  Wrench
 } from "lucide-react";
 import { UserProfile } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -27,7 +36,7 @@ interface Message {
 
 interface SupportSectionProps {
   profile: UserProfile;
-  onAddPoints: (points: number, reason: string) => void;
+  onAddPoints: (points: number, reason: string, extraFields?: Partial<UserProfile>) => void;
 }
 
 export default function SupportSection({ profile, onAddPoints }: SupportSectionProps) {
@@ -37,7 +46,7 @@ export default function SupportSection({ profile, onAddPoints }: SupportSectionP
       sender: "support_bot",
       text: `أهلاً ومرحباً بك يا ${profile.name} في مركز خدمة العملاء والدعم الفني لمنصة "إسلام بالعربي"! 🌹
 
-أنا موظف الدعم الذكي والمساعد الفني "إسلام بالعربي بوت". يسعدني جداً وبكل صدر رحب أن أساعدك في حل أي مشكلة أو استفسار يخص تفاصيل حسابك (الأكونت ميديا)، طريقة الشحن، شراء العملات، أو تفعيل عضوية الـ SVIP الأسطورية.
+أنا موظف الدعم الذكي والمساعد الفني "إسلام بالعربي بوت". يسعدني جداً وبكل صدر رحب أن أساعدك في حل أي مشكلة أو استفسار يخص تفاصيل حسابك (الأكونت ميديا), طريقة الشحن، شراء العملات، أو تفعيل عضوية الـ SVIP الأسطورية.
 
 تفضل بكتابة سؤالك بالتفصيل، أو يمكنك استخدام الأزرار السريعة بالأعلى لطرح مشكلتك فوراً! 👇`,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
@@ -46,6 +55,7 @@ export default function SupportSection({ profile, onAddPoints }: SupportSectionP
   const [inputValue, setInputValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [adminStatusMessage, setAdminStatusMessage] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Quick Action Buttons list
@@ -136,13 +146,110 @@ export default function SupportSection({ profile, onAddPoints }: SupportSectionP
       };
 
       setMessages(prev => [...prev, botMessage]);
-      onAddPoints(10, "التواصل البنّاء مع الدعم الفني الذكي للمنصة");
+
+      // Check if user account needs to be banned based on server response
+      if (data.isAbuseTriggered) {
+        onAddPoints(0, "تم حظر الحساب تلقائياً بسبب الإساءة في الدعم الفني", {
+          isBanned: true,
+          banReason: data.banReason || "مخالفة الآداب العامة وإرسال كلمات بذيئة لبوت الدعم الفني."
+        });
+      } else {
+        onAddPoints(10, "التواصل البنّاء مع الدعم الفني الذكي للمنصة");
+      }
     } catch (err: any) {
       console.error(err);
       setErrorMessage(err.message || "عذراً، فشلت عملية الاتصال بخادم خدمة العملاء. يرجى التحقق من اتصالك بالإنترنت والملف الشخصي.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Toggle administrative badges (Crown, Shield, Headset) granted by owner/system
+  const toggleAdminBadge = (badgeId: string) => {
+    const currentAdminBadges = profile.adminGrantedBadges || [];
+    const currentUnlockedBadges = profile.unlockedBadges || [];
+    const hasBadge = currentAdminBadges.includes(badgeId);
+
+    let updatedAdminBadges = [...currentAdminBadges];
+    let updatedUnlockedBadges = [...currentUnlockedBadges];
+
+    if (hasBadge) {
+      updatedAdminBadges = updatedAdminBadges.filter(id => id !== badgeId);
+      updatedUnlockedBadges = updatedUnlockedBadges.filter(id => id !== badgeId);
+      setAdminStatusMessage(`تم سحب شارة الحساب إدارياً: ${badgeId === 'badge-admin-owner' ? 'تاج المالك' : badgeId === 'badge-admin-moderator' ? 'درع المشرف' : 'الدعم الفني'}`);
+    } else {
+      updatedAdminBadges.push(badgeId);
+      if (!updatedUnlockedBadges.includes(badgeId)) {
+        updatedUnlockedBadges.push(badgeId);
+      }
+      setAdminStatusMessage(`تم منح شارة الإدارة المعتمدة بنجاح للأكونت الحالي! 🎉`);
+    }
+
+    onAddPoints(0, "تعديل الشارات الإدارية للموقع", {
+      adminGrantedBadges: updatedAdminBadges,
+      unlockedBadges: updatedUnlockedBadges
+    });
+
+    setTimeout(() => setAdminStatusMessage(""), 4000);
+  };
+
+  // Set designated administrative site rules role
+  const updateSiteRole = (role: "regular" | "moderator" | "admin" | "owner") => {
+    let reason = "ترقية رتبة العضوية الحالية";
+    let alertMsg = "";
+    if (role === "owner") {
+      alertMsg = "مرحباً بك يا مديرنا العام الأستاذ أحمد علاء! تم توثيق هويتك كمالك للمنصة 👑";
+      // Auto unlock owner badges if they become owner
+      const nextBadges = [...(profile.adminGrantedBadges || [])];
+      const nextUnlocked = [...(profile.unlockedBadges || [])];
+      if (!nextBadges.includes("badge-admin-owner")) nextBadges.push("badge-admin-owner");
+      if (!nextUnlocked.includes("badge-admin-owner")) nextUnlocked.push("badge-admin-owner");
+
+      onAddPoints(2000, "صلاحية مالك الموقع أحمد علاء", {
+        siteRole: "owner",
+        adminGrantedBadges: nextBadges,
+        unlockedBadges: nextUnlocked
+      });
+    } else if (role === "admin") {
+      alertMsg = "تم تسجيلك كمنسق ومدير للدعم الفني للمنصة 🛡️";
+      const nextBadges = [...(profile.adminGrantedBadges || [])];
+      const nextUnlocked = [...(profile.unlockedBadges || [])];
+      if (!nextBadges.includes("badge-admin-support")) nextBadges.push("badge-admin-support");
+      if (!nextUnlocked.includes("badge-admin-support")) nextUnlocked.push("badge-admin-support");
+
+      onAddPoints(1000, "ترقية رتبة منسق دعم فني", {
+        siteRole: "admin",
+        adminGrantedBadges: nextBadges,
+        unlockedBadges: nextUnlocked
+      });
+    } else if (role === "moderator") {
+      alertMsg = "أهلاً بك مشرفاً عاماً على مجالسنا وغرفنا العطرة ⚖️";
+      const nextBadges = [...(profile.adminGrantedBadges || [])];
+      const nextUnlocked = [...(profile.unlockedBadges || [])];
+      if (!nextBadges.includes("badge-admin-moderator")) nextBadges.push("badge-admin-moderator");
+      if (!nextUnlocked.includes("badge-admin-moderator")) nextUnlocked.push("badge-admin-moderator");
+
+      onAddPoints(500, "ترقية رتبة مشرف عام", {
+        siteRole: "moderator",
+        adminGrantedBadges: nextBadges,
+        unlockedBadges: nextUnlocked
+      });
+    } else {
+      alertMsg = "تم تصفير الرتب الإدارية للأكونت لعضوية عادية 🌱";
+      onAddPoints(0, "إرجاع الحساب لعضو عادي", {
+        siteRole: "regular",
+        adminGrantedBadges: [],
+        unlockedBadges: profile.unlockedBadges.filter(id => !id.startsWith("badge-admin-"))
+      });
+    }
+
+    setAdminStatusMessage(alertMsg);
+    setTimeout(() => setAdminStatusMessage(""), 5500);
+  };
+
+  // Quick cash credits developer injection cheat
+  const grantMillionPoints = () => {
+    onAddPoints(1000000, "شحن مليون عملة ذهبية معتمد من سيستم الإدارة والمالك كاش");
   };
 
   return (
@@ -366,6 +473,229 @@ export default function SupportSection({ profile, onAddPoints }: SupportSectionP
               <Send className="w-4.5 h-4.5 rotate-180" />
             </button>
           </form>
+
+        </div>
+
+      </div>
+
+      {/* 3. SITE ADMINISTRATION SYSTEM & BADGE DISPENSARY PANEL */}
+      <div className="bg-neutral-900/40 border border-neutral-800/80 rounded-3xl p-5 md:p-8 space-y-6 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+        {/* Admin System Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-neutral-800">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-450 shadow-inner">
+              <Settings className="w-6 h-6 animate-spin" style={{ animationDuration: '6s' }} />
+            </div>
+            <div>
+              <h3 className="font-extrabold text-white text-sm md:text-base flex items-center gap-2">
+                سيستم إدارة وبث شارات الإدارة والمسؤولين ⚙️
+              </h3>
+              <p className="text-[11px] text-neutral-400 mt-0.5">
+                نظام تحكم المالك والمؤسس (الأستاذ أحمد علاء) لمنح شارات القيادة ومتابعة الموظفين يدوياً وتجربتها.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] text-neutral-500 font-bold bg-neutral-950 px-2.5 py-1 rounded-lg border border-neutral-850">
+              رتبتك الإدارية الحالية: 
+              <span className="text-white font-bold ml-1">
+                {profile.siteRole === "owner" ? "👑 مالك الموقع" : 
+                 profile.siteRole === "admin" ? "🛡️ مدير الدعم" : 
+                 profile.siteRole === "moderator" ? "⚖️ مشرف عام" : "🌱 عضو عادي"}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Administration Status Toast inside support segment */}
+        <AnimatePresence>
+          {adminStatusMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-amber-500 text-neutral-950 px-4 py-3 rounded-2xl text-xs font-black shadow-md flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-neutral-950 shrink-0" />
+              <span>{adminStatusMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          
+          {/* Grid Panel 1: Simulation Role Selector (Left column - 5 cols) */}
+          <div className="md:col-span-5 bg-neutral-950/60 p-5 rounded-2xl border border-neutral-850 space-y-4">
+            <h4 className="text-xs font-black text-neutral-300 uppercase tracking-wider flex items-center gap-1.5 border-b border-neutral-850 pb-2">
+              <Wrench className="w-4 h-4 text-amber-500" />
+              تفعيل ومحاكاة صلاحية مالك الموقع:
+            </h4>
+
+            <p className="text-[11px] text-neutral-400 leading-relaxed">
+              وفقاً لقواعد وضوابط إدارة الموقع، يُسمح للأستاذ أحمد علاء بتعيين وتغيير رتب أي حساب ومنح الشارات مباشرة. يمكنك محاكاة الأدوار الإدارية لتجربتها بنفسك:
+            </p>
+
+            <div className="grid grid-cols-1 gap-2.5 pt-1">
+              <button
+                id="admin-role-owner-btn"
+                onClick={() => updateSiteRole("owner")}
+                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-between cursor-pointer ${
+                  profile.siteRole === "owner"
+                    ? "bg-amber-500 text-neutral-950 shadow-md shadow-amber-500/10 font-black"
+                    : "bg-neutral-900 border border-neutral-800 text-amber-400 hover:border-amber-400"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Crown className="w-4.5 h-4.5" />
+                  الأستاذ أحمد علاء (المالك والمؤسس)
+                </span>
+                <span className="text-[9px] opacity-75">نشط 👑</span>
+              </button>
+
+              <button
+                id="admin-role-admin-btn"
+                onClick={() => updateSiteRole("admin")}
+                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-between cursor-pointer ${
+                  profile.siteRole === "admin"
+                    ? "bg-red-650 text-white shadow-md shadow-red-500/10 font-black"
+                    : "bg-neutral-900 border border-neutral-800 text-red-400 hover:border-red-400"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Shield className="w-4.5 h-4.5" />
+                  مدير الدعم الفني العام
+                </span>
+                <span className="text-[9px] opacity-75">نشط 🛡️</span>
+              </button>
+
+              <button
+                id="admin-role-moderator-btn"
+                onClick={() => updateSiteRole("moderator")}
+                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-between cursor-pointer ${
+                  profile.siteRole === "moderator"
+                    ? "bg-indigo-650 text-white shadow-md shadow-indigo-500/10 font-black"
+                    : "bg-neutral-900 border border-neutral-800 text-indigo-400 hover:border-indigo-400"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <ShieldAlert className="w-4.5 h-4.5" />
+                  المشرف العام للغرف الإرشادية
+                </span>
+                <span className="text-[9px] opacity-75">نشط ⚖️</span>
+              </button>
+
+              <button
+                id="admin-role-regular-btn"
+                onClick={() => updateSiteRole("regular")}
+                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold transition-all flex items-center justify-between cursor-pointer ${
+                  profile.siteRole === "regular" || !profile.siteRole
+                    ? "bg-neutral-800 text-white font-black"
+                    : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:border-neutral-700"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <UserCheck className="w-4.5 h-4.5" />
+                  حساب زائر عادي (طالب العلم)
+                </span>
+                <span className="text-[9px] opacity-75">نشط ✓</span>
+              </button>
+
+            </div>
+          </div>
+
+          {/* Grid Panel 2: Badge Dispensary Section (Right column - 7 cols) */}
+          <div className="md:col-span-7 bg-neutral-950/60 p-5 rounded-2xl border border-neutral-850 flex flex-col justify-between space-y-4">
+            
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-neutral-350 tracking-wider flex items-center gap-1.5 border-b border-neutral-850 pb-2">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                صندوق توزيع وتثبيت شارات الإدارة الرسمية:
+              </h4>
+
+              <p className="text-[11px] text-neutral-400 leading-relaxed mb-2">
+                انقر لمنح وتفعيل الشارات الإدارية الساطعة على هذا الأكونت. تمنح الشارات إطارات بروفايل مذهلة وقدرات تسييرية معلنة لتفادي انتحال الهويات بالموقع:
+              </p>
+
+              {/* Badges Toggles */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                
+                {/* Badge 1: Owner badge toggle button */}
+                <button
+                  id="dispensary-toggle-badge-owner"
+                  onClick={() => toggleAdminBadge("badge-admin-owner")}
+                  disabled={profile.siteRole !== "owner"}
+                  className={`p-3 rounded-2xl border text-right flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    profile.adminGrantedBadges?.includes("badge-admin-owner")
+                      ? "bg-amber-500/10 border-amber-450 text-amber-350"
+                      : "bg-neutral-900 border-neutral-850 hover:border-neutral-800 text-neutral-400"
+                  } disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  <span className="text-2xl">👑</span>
+                  <p className="font-extrabold text-[10px] text-center mt-1">تاج المالك والمؤسس</p>
+                  <p className="text-[8px] text-neutral-500 text-center">شارة للمطور</p>
+                </button>
+
+                {/* Badge 2: Moderator badge toggle button */}
+                <button
+                  id="dispensary-toggle-badge-moderator"
+                  onClick={() => toggleAdminBadge("badge-admin-moderator")}
+                  disabled={profile.siteRole !== "owner"}
+                  className={`p-3 rounded-2xl border text-right flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    profile.adminGrantedBadges?.includes("badge-admin-moderator")
+                      ? "bg-indigo-550/15 border-indigo-450 text-indigo-350"
+                      : "bg-neutral-900 border-neutral-850 hover:border-neutral-800 text-neutral-400"
+                  } disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  <span className="text-2xl">🛡️</span>
+                  <p className="font-extrabold text-[10px] text-center mt-1">درع المشرف العام</p>
+                  <p className="text-[8px] text-neutral-500 text-center">صلاحية الضبط</p>
+                </button>
+
+                {/* Badge 3: Support badge toggle button */}
+                <button
+                  id="dispensary-toggle-badge-support"
+                  onClick={() => toggleAdminBadge("badge-admin-support")}
+                  disabled={profile.siteRole !== "owner"}
+                  className={`p-3 rounded-2xl border text-right flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    profile.adminGrantedBadges?.includes("badge-admin-support")
+                      ? "bg-red-500/15 border-red-500 text-red-350"
+                      : "bg-neutral-900 border-neutral-850 hover:border-neutral-800 text-neutral-400"
+                  } disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  <span className="text-2xl">🎧</span>
+                  <p className="font-extrabold text-[10px] text-center mt-1">الدعم الفني المعتمد</p>
+                  <p className="text-[8px] text-neutral-500 text-center">أخصائي الدعم</p>
+                </button>
+
+              </div>
+              
+              {profile.siteRole !== "owner" && (
+                <p className="text-[9px] text-red-400/90 text-right mt-1.5 font-bold">
+                  * يرجى تفعيل دور مالك الموقع (الأستاذ أحمد علاء) أولاً لتتمكن من تشغيل لوحة منح شارات الإدارة!
+                </p>
+              )}
+            </div>
+
+            {/* Quick cash credits developer injection cheat */}
+            <div className="bg-neutral-900 p-3 rounded-2xl border border-neutral-850 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="text-right">
+                <p className="font-extrabold text-xs text-neutral-200">الشحن المعملي الملكي لقنوات البث 🪙</p>
+                <p className="text-[9px] text-neutral-500">يتيح لك منح 1,000,000 عملة لأكونتك الشخصي لمحاكاة شراء كافة عروض SVIP وهدايا المجالس الصوتية!</p>
+              </div>
+              <button
+                id="grant-royal-points-btn"
+                onClick={grantMillionPoints}
+                className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-l from-amber-500 to-amber-600 hover:from-amber-450 hover:to-amber-550 text-neutral-950 font-black text-[10px] rounded-xl cursor-pointer active:scale-95 transition-all shadow"
+              >
+                شحن +1,000,000 عملة مجاناً 🪙
+              </button>
+            </div>
+
+          </div>
 
         </div>
 

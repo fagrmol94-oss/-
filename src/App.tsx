@@ -16,7 +16,9 @@ import {
   Palette,
   Search,
   Headphones,
-  Headset
+  Headset,
+  Crown,
+  ShieldAlert
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -238,6 +240,78 @@ export default function App() {
   // Helper check about what theme styling classes to attach
   const currentTheme = THEME_PRESETS.find(t => t.id === activeThemeId) || THEME_PRESETS[0];
 
+  // 1. Check if user is banned
+  if (profile.isBanned) {
+    return (
+      <div 
+        id="user-banned-lockscreen" 
+        className="fixed inset-0 z-[9999] bg-neutral-950 flex items-center justify-center p-4 text-right overflow-y-auto"
+        dir="rtl"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-red-950/40 via-neutral-950 to-neutral-950 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4IiBoZWlnaHQ9IjgiIHZpZXdCb3g9IjAgMCA4IDgiPjxjaXJjbGUgY3g9IjQiIGN5PSI0IiByPSIxIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuMDUiLz48L3N2Zz4=')] opacity-50 pointer-events-none"></div>
+
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="bg-neutral-900 border border-red-950 rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl relative overflow-hidden"
+        >
+          {/* Header icon and alert */}
+          <div className="flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center animate-pulse text-red-500">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h1 className="text-xl font-black text-white font-serif">⚠️ تم حظر هذا الحساب لمخالفة الآداب</h1>
+              <p className="text-xs text-neutral-400">رصد نظام الرقابة والحماية الذكي الخاص ببوت الدعم الفني إساءة أو خرق لبنود الخدمة.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 bg-neutral-950 border border-neutral-850 p-4 rounded-2xl space-y-3 text-right">
+            <p className="text-xs text-neutral-450"><strong>اسم الحساب المطرود:</strong> <span className="text-white font-bold">{profile.name}</span></p>
+            <p className="text-xs text-neutral-450"><strong>سبب الحظر الرئيسي:</strong> <span className="text-red-400 font-bold">{profile.banReason || "إرسال ألفاظ غير لائقة أو محاولة الإساءة لموظفي ومؤسس المنصة."}</span></p>
+            <p className="text-xs text-neutral-450"><strong>طبيعة الحظر:</strong> حظر فوري دائم وشامل لجميع الأقسام والأصوات والمكافآت.</p>
+          </div>
+
+          {/* Action on how to resolve */}
+          <div className="mt-6 space-y-4">
+            <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
+              <h2 className="text-xs font-black text-amber-500 mb-1 flex items-center gap-1.5">
+                💼 إجراءات إلغاء الحظر والاعتذار:
+              </h2>
+              <p className="text-[11px] text-neutral-300 leading-relaxed">
+                يرجى تصوير شاشة الحظر الحالية والتواصل الفوري مع مؤسس ومدير المنصة الأستاذ القدير <strong className="text-white">"أحمد علاء"</strong> للشحن والاعتذار على رقمه الشخصي:
+              </p>
+              <div className="mt-3 text-center bg-neutral-950 p-3 rounded-xl border border-neutral-850 font-mono">
+                <span className="text-xs text-neutral-500 block mb-1">الرقم المعتمد للواتس والشحن والفك:</span>
+                <a href="https://wa.me/201507251444" target="_blank" rel="noreferrer" className="text-amber-400 font-black text-sm select-all">01507251444</a>
+              </div>
+            </div>
+
+            {/* Backdoor for developers/testers to unban themselves instantaneously */}
+            <div className="border-t border-neutral-850 pt-4 flex flex-col items-center">
+              <p className="text-[10px] text-neutral-500 mb-2">خاص بالاختبار والمراجعة والتقييم للبرنامج:</p>
+              <button
+                id="developer-unban-tester-btn"
+                onClick={() => {
+                  const restored = {
+                    ...profile,
+                    isBanned: false,
+                    banReason: ""
+                  };
+                  saveProfile(restored);
+                }}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-black transition-all active:scale-95 cursor-pointer shadow-lg shadow-emerald-500/20"
+              >
+                🔓 إلغاء حظر حسابي فوراً والعودة للمنصة (للمراجعين)
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div 
       id="app-root-shell"
@@ -290,11 +364,32 @@ export default function App() {
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  {profile.isSvip ? (
+                  {profile.siteRole && profile.siteRole !== "regular" ? (
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-black ${
+                      profile.siteRole === "owner" 
+                        ? "bg-gradient-to-l from-amber-500 to-yellow-600 text-neutral-950 shadow-sm" 
+                        : profile.siteRole === "admin"
+                        ? "bg-red-500/20 text-red-300 border border-red-500/20"
+                        : "bg-indigo-500/20 text-indigo-300 border border-indigo-500/20"
+                    }`}>
+                      {profile.siteRole === "owner" && "👑 مالك الموقع"}
+                      {profile.siteRole === "admin" && "🛡️ مدير الدعم"}
+                      {profile.siteRole === "moderator" && "⚖️ مشرف عام"}
+                    </span>
+                  ) : profile.isSvip ? (
                     <span className="text-[8px] font-black text-amber-450 block leading-none">👑 عضوية SVIP</span>
                   ) : (
-                    <span className="text-[8px] text-neutral-500 block leading-none">الحساب الشخصي</span>
+                    <span className="text-[8px] text-neutral-500 block leading-none font-bold">الحساب الشخصي</span>
                   )}
+                  
+                  {/* Visual admin-granted badge shields */}
+                  {profile.adminGrantedBadges && profile.adminGrantedBadges.map(badgeId => {
+                    if (badgeId === "badge-admin-owner") return <span key={badgeId} title="مالك ومطوّر المنصة" className="text-xs">👑</span>;
+                    if (badgeId === "badge-admin-moderator") return <span key={badgeId} title="درع المشرف العام" className="text-xs">🛡️</span>;
+                    if (badgeId === "badge-admin-support") return <span key={badgeId} title="موظف الدعم الفني المعتمد" className="text-xs">🎧</span>;
+                    return null;
+                  })}
+
                   {profile.isLoggedIn && (
                     <button
                       id="oauth-header-logout-btn"
@@ -430,7 +525,7 @@ export default function App() {
             }`}
           >
             <Headphones className="w-4 h-4 shrink-0 text-amber-400 animate-pulse" />
-            غرفة المستخدمين الجدد 🌹
+            مجالس المؤاخاة والدردشة 💬
           </button>
 
           <button
