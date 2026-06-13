@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer utilities {
+  @keyframes spin-slow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.6; filter: drop-shadow(0 0 4px rgba(234, 179, 8, 0.4)); }
+    50% { opacity: 1; filter: drop-shadow(0 0 12px rgba(234, 179, 8, 0.8)); }
+  }
+
+  @keyframes lightning-flash {
+    0%, 100% { opacity: 0; }
+    15% { opacity: 0.95; background-color: rgba(255, 255, 255, 0.85); }
+    20% { opacity: 0.15; }
+    25% { opacity: 0.85; background-color: rgba(147, 197, 253, 0.5); }
+    30% { opacity: 0; }
+  }
+
+  @keyframes banner-slide-down {
+    0% { transform: translateY(-120%) scaleY(0.8); opacity: 0; }
+    10% { transform: translateY(0) scaleY(1); opacity: 1; }
+    12% { transform: translateY(-4px); }
+    15% { transform: translateY(0); }
+    85% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(-120%) scaleY(0.8); opacity: 0; }
+  }
+
+  @keyframes wing-spread {
+    0% { transform: scale(0.2) rotate(-8deg); opacity: 0; }
+    20% { transform: scale(1.05) rotate(4deg); opacity: 1; }
+    75% { transform: scale(1) rotate(0); opacity: 0.8; }
+    100% { transform: scale(0.6) rotate(-4deg); opacity: 0; }
+  }
+
+  @keyframes gold-sparkle-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 10s linear infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2.5s ease-in-out infinite;
+  }
+
+  .flash-overlay {
+    animation: lightning-flash 1.5s ease-out forwards;
+  }
+
+  .entrance-banner {
+    animation: banner-slide-down 4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .entrance-wings {
+    animation: wing-spread 3.5s ease-in-out forwards;
+  }
+
+  .gold-sparkle-bg {
+    background: linear-gradient(-45deg, #f59e0b, #d97706, #fbbf24, #b45309, #eab308);
+    background-size: 400% 400%;
+    animation: gold-sparkle-flow 6s ease infinite;
+  }
+}
