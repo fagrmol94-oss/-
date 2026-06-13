@@ -221,6 +221,62 @@ app.post("/api/assistant", async (req: Request, res: Response) => {
   }
 });
 
+// 3.5. CUSTOMER SERVICE TECHNICAL SUPPORT AI BOT - إسلام بالعربي بوت
+app.post("/api/support", async (req: Request, res: Response) => {
+  try {
+    const { message, history } = req.body;
+    if (!message) {
+      res.status(400).json({ error: "No client message sent" });
+      return;
+    }
+
+    const ai = getAi();
+    
+    const systemInstruction = `أنت "إسلام بالعربي بوت" (Islam Arabic Bot) - موظف خدمة العملاء والدعم الفني الذكي والودود لمنصة "إسلام بالعربي" الشهيرة.
+مهمتك الرئيسية والوحيدة هي مساعدة وفهم مشاكل المستخدمين وحلها بصدر رحب، وبشكل خاص المشاكل المتعلقة بـ:
+1. شحن العملات (النقاط/الذهب 🪙):
+   * أرشدهم إلى صفحة "شحن ومكافآت المتجر" في المنصة.
+   * أكد لهم أن طريقة الشحن المعتمدة والآمنة هى تحويل فودافون كاش (Vodafone Cash) مباشرة لمؤسس ومدير الموقع الأستاذ القدير "أحمد علاء" على رقمه الشخصي: 01507251444 (01507251444).
+   * بعد قيامهم بالتحويل، يجب عليهم أخذ لقطة شاشة للتحويل (إيصال الدفع) والاتصال بالأستاذ أحمد علاء مباشرة على الواتساب أو تزويده بالتفاصيل لتأكيد وشحن حسابهم يدوياً فوراً!
+   * تتوفر "عضوية الـ SVIP الملكية الأسطورية" لشحن 1,000,000 عملة بقيمة 5000 ج.م، وتمنح إطارات بروفايل متحركة ساحرة، ومواكب ترحيبية بالبرق والراية الملكية، ومكافآت Claims أسبوعية تصل لـ 15,000 عملة مجاناً!
+
+2. مشاكل وإعدادات الحسابات (الأكونت ميديا 🔐):
+   * يواجه بعض الأعضاء مشكلة في عدم حفظ نقاطهم ومستواهم. وضّح لهم أهمية تسجيل الدخول عبر حساب Google أو Facebook الآمن بنقرة واحدة من الشريط العلوي للموقع.
+   * أخبرهم أن الحساب غير المسجل (الزائر أو "طالب العلم") تُخزن بياناته محلياً في المتصفح، وإذا قاموا بمسح بيانات تصفح كروم/سفاري أو تغيير الجهاز، فقد يفقدون النقاط والمستوى! لذا نوصي بشدة بالربط فوراً بجوجل أو فيسبوك لحفظ وربط نقاطهم وحسابهم للأبد.
+   * في حالة الرغبة في تعديل الاسم أو اختيار إطار أو الاطلاع على تفاصيل المستوى ونقاط الخبرة (XP)، يمكنهم النقر على "الملف الشخصي" (بطاقة الاسم) في أعلى يسار الصفحة.
+
+3. نبرة الرد وأسلوب المحادثة:
+   * تحدّث باللغة العربية المودة الميسّرة وبكل هدوء واحترام، واعرض تيسيراً لكل عقبة.
+   * ابدأ ردودك بترحيب مبارك مثل: "أهلاً بك يا فخر السائلين رعاك الله، معك إسلام بالعربي بوت للدعم الفني..."
+   * إذا تعذّر عليك حل المشكلة تقنياً، ركّز على طمأنتهم وأخبرهم أن الإدارة متواجدة دوماً، ويمكن للأستاذ أحمد علاء مراجعة حساباتهم وشحنها يدوياً إذا لزم الأمر بمجرد الإرسال له على الرقم 01507251444.`;
+
+    const historyLog = history && Array.isArray(history) 
+      ? history.slice(-6).map((h: any) => ({
+          role: h.role === "user" ? "user" : "model",
+          parts: Array.isArray(h.parts) ? h.parts : [{ text: h.parts?.[0]?.text || h.message || "" }]
+        }))
+      : [];
+
+    const chatParams = {
+      model: "gemini-3.5-flash",
+      history: historyLog,
+      config: {
+        systemInstruction: systemInstruction,
+        temperature: 0.7
+      }
+    };
+
+    const response = await sendChatMessageWithFallback(ai, chatParams, { message: message });
+    res.json({ reply: response.text });
+  } catch (error: any) {
+    console.error("Support API Error:", error);
+    res.status(500).json({
+      error: error.message || "حدث خطأ غير متوقع أثناء التواصل مع بوت الدعم الفني",
+      isKeyMissing: error.message?.includes("GEMINI_API_KEY")
+    });
+  }
+});
+
 // 4. GEMINI TTS (TEXT-TO-SPEECH) GENERATOR - Converts Hadith or Seerah Lesson to classical voice audio. 
 app.post("/api/tts", async (req: Request, res: Response) => {
   try {

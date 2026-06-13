@@ -15,7 +15,8 @@ import {
   Heart,
   Palette,
   Search,
-  Headphones
+  Headphones,
+  Headset
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -26,6 +27,7 @@ import HadithSection from "./components/HadithSection";
 import SeerahSection from "./components/SeerahSection";
 import RewardsSection from "./components/RewardsSection";
 import AIAssistant from "./components/AIAssistant";
+import SupportSection from "./components/SupportSection";
 import TasbihSection from "./components/TasbihSection";
 import SearchSection from "./components/SearchSection";
 import VoiceRoomSection from "./components/VoiceRoomSection";
@@ -456,6 +458,19 @@ export default function App() {
             <MessageSquare className="w-4 h-4 shrink-0 animate-pulse text-amber-400" />
             مجلس المعلم هادي (AI)
           </button>
+
+          <button
+            id="tab-btn-support"
+            onClick={() => setActiveTab("support")}
+            className={`px-4 py-3 text-xs md:text-sm font-bold transition-all whitespace-nowrap border-b-2 flex items-center gap-2 cursor-pointer ${
+              activeTab === "support"
+                ? "border-amber-400 text-amber-450"
+                : "border-transparent text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            <Headset className="w-4 h-4 shrink-0 animate-pulse text-amber-400" />
+            خدمة عملاء الدعم الفني 📞
+          </button>
         </div>
 
         {/* 3. ACTIVE SUBSECTION RENDERER */}
@@ -536,6 +551,13 @@ export default function App() {
 
           {activeTab === "ai-chat" && (
             <AIAssistant 
+              profile={profile}
+              onAddPoints={handleModifyPoints}
+            />
+          )}
+
+          {activeTab === "support" && (
+            <SupportSection 
               profile={profile}
               onAddPoints={handleModifyPoints}
             />
